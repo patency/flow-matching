@@ -1,0 +1,154 @@
+# -----------------------------
+# Python / PyTorch
+# -----------------------------
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+
+# -----------------------------
+# Checkpoints / Model Weights
+# -----------------------------
+*.pt
+*.pth
+*.ckpt
+*.tar
+*.t7
+*.onnx
+*.safetensors
+models/
+checkpoints/
+outputs/
+runs/
+wandb/
+lightning_logs/
+
+# -----------------------------
+# Data / Datasets / Samples
+# -----------------------------
+data/
+datasets/
+samples/
+*.npz
+*.npy
+*.bin
+*.pkl
+*.jsonl
+*.csv
+*.zip
+*.tar.gz
+*.7z
+
+# -----------------------------
+# Cache / Logs
+# -----------------------------
+.cache/
+logs/
+log/
+*.log
+tmp/
+temp/
+output/
+*.out
+*.err
+
+# -----------------------------
+# Jupyter / Notebooks
+# -----------------------------
+.ipynb_checkpoints/
+*.ipynb
+
+# -----------------------------
+# IDE / Editor / OS
+# -----------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.bak
+
+# -----------------------------
+# Virtual Environments
+# -----------------------------
+.env/
+.venv/
+venv/
+env/
+*.pyenv
+*.conda
+*.mamba
+*.pkl
+
+# -----------------------------
+# HuggingFace / Diffusers
+# -----------------------------
+huggingface/
+hf_cache/
+transformers_cache/
+diffusers_cache/
+~/.cache/huggingface/
+~/.cache/torch/
+
+# -----------------------------
+# Visualization / Rendering
+# -----------------------------
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.mp4
+*.webm
+*.ply
+*.glb
+*.obj
+
+# -----------------------------
+# Cluster / HPC Outputs
+# -----------------------------
+*.sbatch
+*.sh.*
+*.out
+*.err
+*.pbs
+*.job
+nohup.out
+*.log.*
+*.ckpt.*
+*.pth.*
+
+# -----------------------------
+# LaTeX / Paper Projects
+# -----------------------------
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.pdf
+*.gz
+*.lof
+*.lot
+*.synctex
+*.bak
+*.bcf
+*.run.xml
+
+# -----------------------------
+# Others (for safety)
+# -----------------------------
+*.tmp
+*.old
+*.backup
