@@ -165,3 +165,12 @@ nohup.out
 !assets/*.bmp
 !assets/*.tiff
 
+!samples/
+!samples/**
+!samples/*.png
+!samples/*.jpg
+!samples/*.jpeg
+!samples/*.gif
+!samples/*.bmp
+!samples/*.tiff
+
