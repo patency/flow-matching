@@ -152,3 +152,16 @@ nohup.out
 *.tmp
 *.old
 *.backup
+
+# -----------------------------
+# Keep images in assets/
+# -----------------------------
+!assets/
+!assets/**
+!assets/*.png
+!assets/*.jpg
+!assets/*.jpeg
+!assets/*.gif
+!assets/*.bmp
+!assets/*.tiff
+
