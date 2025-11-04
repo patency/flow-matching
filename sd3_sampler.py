@@ -243,6 +243,152 @@ class SD3Euler(StableDiffusion3Base):
             img = self.decode(z)
         return img
 
+@register_solver('flow_resample')
+class SD3FlowResample(SD3Euler):
+    def pixel_optimization(self, measurement, x_prime, operator, max_iters:int=200, lr:float=1e-2, eps:float=1e-3):
+        loss_fn = torch.nn.MSELoss()
+        opt_var = x_prime.detach().clone().requires_grad_(True)
+        optimizer = torch.optim.AdamW([opt_var], lr=lr)
+        measurement = measurement.detach()
+        for _ in range(max_iters):
+            optimizer.zero_grad(set_to_none=True)
+            loss = loss_fn(measurement, operator.A(opt_var))
+            loss.backward()
+            optimizer.step()
+            if loss.item() < eps * eps:
+                break
+        return opt_var.detach()
+
+    def latent_optimization(self, measurement, z_init, operator, max_iters:int=200, lr:float=5e-3, eps:float=1e-3):
+        loss_fn = torch.nn.MSELoss()
+        z = z_init.detach().clone().requires_grad_(True)
+        optimizer = torch.optim.AdamW([z], lr=lr)
+        measurement = measurement.detach()
+        for _ in range(max_iters):
+            optimizer.zero_grad(set_to_none=True)
+            x = self.decode(z).float()
+            loss = loss_fn(measurement, operator.A(x))
+            loss.backward()
+            optimizer.step()
+            if loss.item() < eps * eps:
+                break
+        return z.detach()
+
+    def stochastic_resample(self, z_pseudo, z_t, sigma:float, sigma_next:float, k:float=40.0, noise_scale:float=1.0):
+        # Adapted from ReSample: use a scalar to weight pseudo vs previous state, with small Gaussian noise
+        delta = max(float(sigma - sigma_next), 1e-6)
+        rs = k * delta
+        weight_pseudo = rs / (rs + 1.0)
+        weight_prev = 1.0 - weight_pseudo
+        noise_std = math.sqrt(max(float(sigma_next), 0.0)) * noise_scale
+        return weight_pseudo * z_pseudo + weight_prev * z_t + noise_std * torch.randn_like(z_t)
+
+    def sample(self, measurement, operator, task,
+               prompts: List[str], NFE:int,
+               img_shape: Optional[Tuple[int]]=None,
+               cfg_scale: float=1.0, batch_size: int = 1,
+               step_size: float=0.0,
+               latent:Optional[List[torch.Tensor]]=None,
+               prompt_emb:Optional[List[torch.Tensor]]=None,
+               null_emb:Optional[List[torch.Tensor]]=None):
+
+        imgH, imgW = img_shape if img_shape is not None else (1024, 1024)
+
+        # encode text prompts
+        with torch.no_grad():
+            if prompt_emb is None:
+                prompt_emb, pooled_emb = self.encode_prompt(prompts, batch_size)
+            else:
+                prompt_emb, pooled_emb = prompt_emb[0], prompt_emb[1]
+
+            prompt_emb = prompt_emb.to(self.transformer.device)
+            pooled_emb = pooled_emb.to(self.transformer.device)
+
+            if null_emb is None:
+                null_prompt_emb, null_pooled_emb = self.encode_prompt([""], batch_size)
+            else:
+                null_prompt_emb, null_pooled_emb = null_emb[0], null_emb[1]
+
+            null_prompt_emb = null_prompt_emb.to(self.transformer.device)
+            null_pooled_emb = null_pooled_emb.to(self.transformer.device)
+
+        # initialize latent
+        if latent is None:
+            z = self.initialize_latent((imgH, imgW), batch_size)
+        else:
+            z = latent
+
+        # timesteps
+        self.scheduler.config.shift = 4.0
+        self.scheduler.set_timesteps(NFE, device=self.device)
+        timesteps = self.scheduler.timesteps
+        sigmas = timesteps / self.scheduler.config.num_train_timesteps
+
+        # scheduling helpers
+        splits = 3
+        index_split = NFE // splits
+
+        pbar = tqdm(timesteps, total=NFE, desc='SD3-FlowResample')
+        for i, t in enumerate(pbar):
+            timestep = t.expand(z.shape[0]).to(self.device)
+
+            with torch.no_grad():
+                pred_v = self.predict_vector(z, timestep, prompt_emb, pooled_emb)
+                if cfg_scale != 1.0:
+                    pred_null_v = self.predict_vector(z, timestep, null_prompt_emb, null_pooled_emb)
+                else:
+                    pred_null_v = 0.0
+                pred_v = pred_null_v + cfg_scale * (pred_v - pred_null_v)
+
+            sigma = sigmas[i]
+            sigma_next = sigmas[i+1] if i+1 < NFE else torch.tensor(0.0, device=self.device, dtype=sigma.dtype)
+
+            # Euler step
+            z0t = z - sigma * pred_v
+            z1t = z + (1 - sigma) * pred_v
+            delta = sigma - sigma_next
+            base = z0t + (sigma - delta) * (z1t - z0t)
+
+            # periodic resample stages (time-travel inspired)
+            index = NFE - i - 1
+            if (index > 0) and (index % 10 == 0):
+                z_prev = z.detach()
+
+                # build pseudo x0 in latent
+                z_pseudo = z0t.detach()
+
+                if index >= index_split:
+                    # pixel optimization stage
+                    x_pseudo = self.decode(z_pseudo).float()
+                    x_opt = self.pixel_optimization(measurement=measurement.to(x_pseudo.device, dtype=x_pseudo.dtype),
+                                                    x_prime=x_pseudo,
+                                                    operator=operator,
+                                                    max_iters=200,
+                                                    lr=1e-2)
+                    z_opt = self.encode(x_opt.to(self.vae.device, dtype=self.dtype))
+                else:
+                    # latent optimization stage
+                    z_opt = self.latent_optimization(measurement=measurement.to(self.vae.device, dtype=torch.float32),
+                                                      z_init=z_pseudo,
+                                                      operator=operator,
+                                                      max_iters=200,
+                                                      lr=5e-3)
+
+                # stochastic resampling
+                z = self.stochastic_resample(z_opt.to(base.device, dtype=base.dtype),
+                                             z_prev.to(base.device, dtype=base.dtype),
+                                             float(sigma.item()),
+                                             float(sigma_next.item()) if isinstance(sigma_next, torch.Tensor) else float(sigma_next),
+                                             k=40.0,
+                                             noise_scale=1.0)
+            else:
+                z = base
+
+        # decode
+        with torch.no_grad():
+            img = self.decode(z)
+        return img
+
 @register_solver("flowdps")
 class SD3FlowDPS(SD3Euler):
     def data_consistency(self, z0t, operator, measurement, task, stepsize:int=30.0):
@@ -412,12 +558,13 @@ class SD3FlowChef(SD3Euler):
 
             # renoising
             z = z0t + (sigma-delta) * (z1t - z0t) - step_size*grad
+            # break the graph for next step
+            z = z.detach()
 
         # decode
         with torch.no_grad():
             img = self.decode(z)
         return img
-
 
 
 @register_solver('psld')
@@ -468,13 +615,17 @@ class SD3PSLD(SD3Euler):
         for i, t in enumerate(pbar):
             timestep = t.expand(z.shape[0]).to(self.device)
 
-            z = z.requires_grad_(True)
-            pred_v = self.predict_vector(z, timestep, prompt_emb, pooled_emb)
-            if cfg_scale != 1.0:
-                pred_null_v = self.predict_vector(z, timestep, null_prompt_emb, null_pooled_emb)
-            else:
-                pred_null_v = 0.0
-            pred_v = pred_null_v + cfg_scale * (pred_v - pred_null_v)
+            # freeze model gradients during prediction
+            with torch.no_grad():
+                pred_v = self.predict_vector(z, timestep, prompt_emb, pooled_emb)
+                if cfg_scale != 1.0:
+                    pred_null_v = self.predict_vector(z, timestep, null_prompt_emb, null_pooled_emb)
+                else:
+                    pred_null_v = 0.0
+                pred_v = pred_null_v + cfg_scale * (pred_v - pred_null_v)
+
+            # enable grad only for DC residue w.r.t z
+            z = z.detach().requires_grad_(True)
 
             sigma = sigmas[i]
             sigma_next = sigmas[i+1] if i+1 < NFE else 0.0
@@ -486,8 +637,9 @@ class SD3PSLD(SD3Euler):
 
             # DC & goodness of z0t
             x_pred = self.decode(z0t).float()
+            meas = measurement.to(x_pred.device, dtype=x_pred.dtype)
             y_pred = operator.A(x_pred)
-            y_residue = torch.linalg.norm((y_pred-measurement).view(1, -1))
+            y_residue = torch.linalg.norm((y_pred - meas).view(1, -1))
 
             if "sr" in task:
                 ortho_proj = x_pred.reshape(1, -1) - operator.A_pinv(y_pred).reshape(1, -1)
@@ -497,7 +649,8 @@ class SD3PSLD(SD3Euler):
                 parallel_proj = operator.At(measurement).reshape(1, -1)
             proj = parallel_proj + ortho_proj
 
-            recon_z = self.encode(proj.reshape(1, 3, imgH, imgW).half())
+            proj_img = proj.reshape(1, 3, imgH, imgW).clamp(-1, 1)
+            recon_z = self.encode(proj_img.half())
             z0_residue = torch.linalg.norm((z0t - recon_z).view(1, -1))
 
             residue = 1.0 * y_residue + 0.1 * z0_residue
