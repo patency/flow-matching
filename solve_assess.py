@@ -4,6 +4,9 @@ from typing import List
 
 from datetime import datetime
 import numpy as np
+import os
+import shutil
+import socket
 
 from munch import munchify
 from PIL import Image
@@ -186,9 +189,14 @@ def run(args):
         writer.add_scalar('metrics/ssim', float(ssim_val), i)
         if lpips_val is not None:
             writer.add_scalar('metrics/lpips', float(lpips_val), i)
-        writer.add_image('images/input', (inp[0].clamp(-1,1)+1)*0.5, i)
-        writer.add_image('images/label', (img[0].clamp(-1,1)+1)*0.5, i)
-        writer.add_image('images/recon', (out[0].clamp(-1,1)+1)*0.5, i)
+        _inp = ((inp[0].clamp(-1,1)+1)*0.5).detach().cpu()
+        _min, _max = _inp.min(), _inp.max()
+        _inp = (_inp - _min) / (_max - _min + 1e-6)
+        if _inp.size(0) == 1:
+            _inp = _inp.repeat(3, 1, 1)
+        writer.add_image('images/input', _inp, i, dataformats='CHW')
+        writer.add_image('images/label', ((img[0].clamp(-1,1)+1)*0.5).detach().cpu(), i, dataformats='CHW')
+        writer.add_image('images/recon', ((out[0].clamp(-1,1)+1)*0.5).detach().cpu(), i, dataformats='CHW')
 
         if (i+1) == args.num_samples:
             break
@@ -236,23 +244,52 @@ def run(args):
         writer.add_scalar('metrics_summary/fid', fid_val, 0)
     writer.close()
 
-    # optionally launch tensorboard
+    # optionally launch tensorboard (no subprocess, replace current process so user can Ctrl-C to stop)
     if getattr(args, 'auto_tb', False):
         tb_bin = shutil.which('tensorboard')
-        if tb_bin is not None:
-            tb_log = (run_dir / 'tensorboard_stdout.log')
-            try:
-                with open(tb_log, 'ab', buffering=0) as f:
-                    subprocess.Popen([
-                        tb_bin,
-                        f"--logdir={str(run_dir / 'tb')}",
-                        f"--port={args.tb_port}"
-                    ], stdout=f, stderr=subprocess.STDOUT, close_fds=True)
-                print(f"TensorBoard started on port {args.tb_port}. Logdir: {str(run_dir / 'tb')}")
-            except Exception as e:
-                print(f"Failed to start TensorBoard automatically: {e}")
-        else:
+        if tb_bin is None:
             print("tensorboard executable not found in PATH. Please install or add to PATH.")
+        else:
+            def _find_free_port(start_port: int, host: str = '0.0.0.0', max_tries: int = 20) -> int:
+                p = start_port
+                for _ in range(max_tries):
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                        try:
+                            s.bind((host, p))
+                            return p
+                        except OSError:
+                            p += 1
+                return start_port
+
+            def _detect_non_loopback_ip() -> str:
+                try:
+                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                        s.connect(("8.8.8.8", 80))
+                        return s.getsockname()[0]
+                except Exception:
+                    try:
+                        ip = socket.gethostbyname(socket.gethostname())
+                        if not ip.startswith("127."):
+                            return ip
+                    except Exception:
+                        pass
+                return "127.0.0.1"
+
+            host = '0.0.0.0'
+            port = _find_free_port(getattr(args, 'tb_port', 6006), host)
+            access_ip = _detect_non_loopback_ip()
+
+            url = f"http://{access_ip}:{port}/"
+            print(f"Launching TensorBoard at: {url}\nLogdir: {str(run_dir / 'tb')}\nPress Ctrl-C to stop.")
+
+            argv = [
+                'tensorboard',
+                '--logdir', str(run_dir / 'tb'),
+                '--host', host,
+                '--port', str(port),
+            ]
+            os.execvp(tb_bin, argv)
 
 
 if __name__ == "__main__":

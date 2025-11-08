@@ -1,4 +1,4 @@
-**Example 1. Super-resolution x 12 (avg-pool) / Dog**
+**Example 1. solve Super-resolution x 12 (avg-pool) / Dog**
 ```
 # flowdps
 python solve.py \
@@ -32,6 +32,60 @@ python solve.py \
 
 # resample
 python solve.py \
+    --img_size 768 \
+    --img_path samples/afhq_example.jpg \
+    --prompt "a photo of a closed face of a dog" \
+    --task sr_avgpool \
+    --deg_scale 12 \
+    --efficient_memory \
+    --method flow_resample;
+
+```
+
+**Example 1. solve_assess Super-resolution x 12 (avg-pool) / Dog**
+```
+# flowdps
+python solve_assess.py \
+    --img_size 768 \
+    --img_path samples/afhq_example.jpg \
+    --prompt "a photo of a closed face of a dog" \
+    --task sr_avgpool \
+    --deg_scale 12 \
+    --efficient_memory \
+    --method flowdps;
+
+# flowchef
+python solve_assess.py \
+    --img_size 768 \
+    --img_path samples/afhq_example.jpg \
+    --prompt "a photo of a closed face of a dog" \
+    --task sr_avgpool \
+    --deg_scale 12 \
+    --efficient_memory \
+    --method flowchef;
+
+# psld
+python solve_assess.py \
+    --img_size 768 \
+    --img_path samples/afhq_example.jpg \
+    --prompt "a photo of a closed face of a dog" \
+    --task sr_avgpool \
+    --deg_scale 12 \
+    --efficient_memory \
+    --method psld;
+
+# psld_p
+python solve_assess.py \
+    --img_size 768 \
+    --img_path samples/afhq_example.jpg \
+    --prompt "a photo of a closed face of a dog" \
+    --task sr_avgpool \
+    --deg_scale 12 \
+    --efficient_memory \
+    --method psld_simple;
+
+# resample
+python solve_assess.py \
     --img_size 768 \
     --img_path samples/afhq_example.jpg \
     --prompt "a photo of a closed face of a dog" \
