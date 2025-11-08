@@ -569,7 +569,7 @@ class SD3FlowChef(SD3Euler):
 
 @register_solver('psld')
 class SD3PSLD(SD3Euler):
-    def sample(self, measurement, operator, task,
+    def sample(self, measurement, operator, task,            
                prompts: List[str], NFE:int,
                img_shape: Optional[Tuple[int]]=None,
                cfg_scale: float=1.0, batch_size: int = 1,
@@ -653,7 +653,7 @@ class SD3PSLD(SD3Euler):
             recon_z = self.encode(proj_img.half())
             z0_residue = torch.linalg.norm((z0t - recon_z).view(1, -1))
 
-            residue = 1.0 * y_residue + 0.1 * z0_residue
+            residue = 1 * y_residue + 0.05 * z0_residue
             grad = torch.autograd.grad(residue, z)[0]
 
             # renoising
@@ -663,3 +663,231 @@ class SD3PSLD(SD3Euler):
         with torch.no_grad():
             img = self.decode(z)
         return img
+
+@torch.no_grad()
+def s_safe_ortho_only(
+    r: torch.Tensor,                # (B, D) 原始修正量（-step_size*grad 展平）
+    g: Optional[torch.Tensor]=None, # (B, D) 基线向量（pred_v 展平），可为 None
+    mode: str="orth",               # "orth" | "along"
+    trust_ratio: float=1.0,         # ||w|| <= trust_ratio * ||r||
+    min_gain_ratio: float=0.0,      # 可选下限：||w|| >= min_gain_ratio * ||r||
+    eps: float=1e-8,
+) -> torch.Tensor:
+    """
+    仅做与 g 的正交/沿向分解 + 信赖域缩放；不做均值/能量中和。
+    返回 w: (B, D)
+    """
+    if g is not None:
+        coef  = (r * g).sum(-1, keepdim=True) / (g.pow(2).sum(-1, keepdim=True) + eps)
+        projg = coef * g
+    else:
+        projg = torch.zeros_like(r)
+
+    if mode == "along":
+        p = projg
+    else:  # "orth"
+        p = r - projg if g is not None else r
+
+    # 信赖域缩放
+    nr = r.norm(dim=1, keepdim=True) + 1e-8
+    nw = p.norm(dim=1, keepdim=True) + 1e-8
+
+    # 上限
+    scale_up = torch.clamp((nr / nw) * trust_ratio, max=1.0)
+    w = p * scale_up
+
+    # 下限（可选）
+    if min_gain_ratio > 0.0:
+        nw2 = w.norm(dim=1, keepdim=True) + 1e-8
+        need_boost = (nw2 < (min_gain_ratio * nr)).float()
+        boost = (min_gain_ratio * nr) / (nw2 + 1e-8)
+        w = w * (1.0 - need_boost) + w * boost * need_boost
+
+    return w
+
+@torch.no_grad()
+def s_safe_lite_stable(
+    r: torch.Tensor,           # (B, D) 原始后验修正量（如 -step_size * grad）
+    x: torch.Tensor,           # (B, D) 统计用的“位置”（建议用 z0t 展平）
+    g: Optional[torch.Tensor]=None,  # (B, D) 基线/去噪器速度（pred_v 展平）
+    use_track: bool=True,      # True: 仅保留沿 g 的分量；False: 去掉沿 g 的分量
+    eps: float=1e-8,
+    mean_only: bool=True,      # True: 只做均值中和（强烈推荐作为默认）
+    gamma_max: float=0.05,     # 若启用能量中和，限制 |gamma| 的上限
+    trust_ratio: float=1.0,    # 置信域缩放：||w|| <= trust_ratio * ||r||
+) -> Tuple[torch.Tensor, torch.Tensor, float]:
+    """
+    返回:
+      w:      (B, D) 安全修正量（用于替换原始 -step_size*grad）
+      b:      (D,)   均值中和偏置（日志）
+      gamma:  float  能量中和系数（日志）
+    """
+    B, D = r.shape
+
+    # proj onto g（不分配 BxDxD）
+    if g is not None:
+        coef  = (r * g).sum(-1, keepdim=True) / (g.pow(2).sum(-1, keepdim=True) + eps)  # (B,1)
+        projg = coef * g                                                                 # (B,D)
+    else:
+        projg = torch.zeros_like(r)
+
+    # 二选一：保留沿 g（在轨）或去掉沿 g（正交）
+    p = projg if (use_track and g is not None) else (r - projg if g is not None else r)
+
+    # 批统计（弱守恒闭式）
+    m  = p.mean(dim=0)           # (D,)
+    mu = x.mean(dim=0)           # (D,)
+
+    if mean_only:
+        b = m
+        gamma = 0.0
+        w = p - b
+    else:
+        S = x.pow(2).sum(dim=-1).mean()              # scalar
+        C = (x * p).sum(dim=-1).mean()               # scalar
+        denom = (mu.pow(2).sum() - S) + eps          # scalar
+        gamma = torch.clamp((mu @ m - C) / denom, -gamma_max, gamma_max).item()
+        b = m - gamma * mu
+        w = p - b - gamma * x
+
+    # 信赖域缩放：不让修正超过原始 r 的量级
+    nr = r.norm(dim=1, keepdim=True) + 1e-8
+    nw = w.norm(dim=1, keepdim=True) + 1e-8
+    scale = torch.clamp((nr / nw) * trust_ratio, max=1.0)
+    w = w * scale
+
+    return w, b, gamma
+
+@register_solver('psld_p')
+class SD3PSLD_P(SD3Euler):
+    """
+    PSLD with posterior-safe lite projection (psld_p)
+
+    仅对“后验投影得到的梯度步 r_raw = -step_size*grad”应用安全修正算子，
+    不改变去噪器输出 pred_v（主流）。
+    """
+    def __init__(self, *args,
+                 use_track_projection: bool = True,  # True: 仅保留沿 pred_v 的方向
+                 mean_only: bool = True,             # True: 仅均值中和（最稳）
+                 gamma_max: float = 0.05,            # 若启用能量中和时的限幅
+                 trust_ratio: float = 1.0,           # 信赖域缩放
+                 safe_eps: float = 1e-8,
+                 **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_track_projection = use_track_projection
+        self.mean_only = mean_only
+        self.gamma_max = gamma_max
+        self.trust_ratio = trust_ratio
+        self.safe_eps = safe_eps
+
+    def sample(self, measurement, operator, task,
+               prompts: List[str], NFE:int,
+               img_shape: Optional[Tuple[int]]=None,
+               cfg_scale: float=1.0, batch_size: int = 1,
+               step_size: float=50.0,
+               latent:Optional[List[torch.Tensor]]=None,
+               prompt_emb:Optional[List[torch.Tensor]]=None,
+               null_emb:Optional[List[torch.Tensor]]=None):
+
+        imgH, imgW = img_shape if img_shape is not None else (1024, 1024)
+
+        # encode text prompts
+        with torch.no_grad():
+            if prompt_emb is None:
+                prompt_emb, pooled_emb = self.encode_prompt(prompts, batch_size)
+            else:
+                prompt_emb, pooled_emb = prompt_emb[0], prompt_emb[1]
+            prompt_emb = prompt_emb.to(self.transformer.device)
+            pooled_emb = pooled_emb.to(self.transformer.device)
+
+            if null_emb is None:
+                null_prompt_emb, null_pooled_emb = self.encode_prompt([""], batch_size)
+            else:
+                null_prompt_emb, null_pooled_emb = null_emb[0], null_emb[1]
+            null_prompt_emb = null_prompt_emb.to(self.transformer.device)
+            null_pooled_emb = null_pooled_emb.to(self.transformer.device)
+
+        # initialize latent
+        z = self.initialize_latent((imgH, imgW), batch_size) if latent is None else latent
+
+        # timesteps
+        self.scheduler.config.shift = 4.0
+        self.scheduler.set_timesteps(NFE, device=self.device)
+        timesteps = self.scheduler.timesteps
+        sigmas = timesteps / self.scheduler.config.num_train_timesteps
+
+        # Solve ODE
+        pbar = tqdm(timesteps, total=NFE, desc='SD3-PSLD-P')
+        for i, t in enumerate(pbar):
+            timestep = t.expand(z.shape[0]).to(self.device)
+
+            # 1) 预测主流向量（去噪器；不参与修正）
+            with torch.no_grad():
+                pred_v = self.predict_vector(z, timestep, prompt_emb, pooled_emb)
+                if cfg_scale != 1.0:
+                    pred_null_v = self.predict_vector(z, timestep, null_prompt_emb, null_pooled_emb)
+                else:
+                    pred_null_v = 0.0
+                pred_v = pred_null_v + cfg_scale * (pred_v - pred_null_v)
+
+            # 2) 构造 z0t/z1t
+            z = z.detach().requires_grad_(True)
+            sigma = sigmas[i]
+            sigma_next = sigmas[i+1] if i+1 < NFE else 0.0
+
+            z0t = z - sigma * pred_v
+            z1t = z + (1 - sigma) * pred_v
+            delta = sigma - sigma_next
+
+            # 3) DC & prior 残差（仅对 z 求梯度）
+            x_pred = self.decode(z0t).float()
+            meas = measurement.to(x_pred.device, dtype=x_pred.dtype)
+            y_pred = operator.A(x_pred)
+            y_residue = torch.linalg.norm((y_pred - meas).view(1, -1))
+
+            if "sr" in task:
+                ortho_proj = x_pred.reshape(1, -1) - operator.A_pinv(y_pred).reshape(1, -1)
+                parallel_proj = operator.A_pinv(measurement).reshape(1, -1)
+            else:
+                ortho_proj = x_pred.reshape(1, -1) - operator.At(y_pred).reshape(1, -1)
+                parallel_proj = operator.At(measurement).reshape(1, -1)
+            proj = parallel_proj + ortho_proj
+
+            proj_img = proj.reshape(1, 3, imgH, imgW).clamp(-1, 1)
+            recon_z = self.encode(proj_img.half())
+            z0_residue = torch.linalg.norm((z0t - recon_z).view(1, -1))
+
+            residue = 1.0 * y_residue + 0.05 * z0_residue
+            grad = torch.autograd.grad(residue, z, retain_graph=False, create_graph=False)[0]
+
+            # 4) 仅修正“后验投影梯度步” —— 不影响 pred_v
+            r_raw = - step_size * grad                        # (B, C, H, W) same as z
+            with torch.no_grad():
+                B = z.shape[0]
+                x_vec = z0t.detach().view(B, -1)              # 用去噪后的 z0t 做统计更稳
+                r_vec = r_raw.detach().view(B, -1)
+                g_vec = pred_v.detach().view(B, -1)
+
+                w_safe_vec = s_safe_ortho_only(
+                    r=r_vec,
+                    g=g_vec,
+                    mode="orth",          # 或 "along"
+                    trust_ratio=1.0,      # 不超过原始步长
+                    min_gain_ratio=0.0,   # 如担心过小可设 0.1
+                    eps=1e-8,
+                )
+                w_safe = w_safe_vec.view_as(z)
+
+            # 5) 组合更新（保留 PSLD 的重噪形式），仅替换 -step_size*grad
+            z = z0t + (sigma - delta) * (z1t - z0t) + w_safe
+            z = z.detach()  # 下一步再需要 grad
+
+        # decode
+        with torch.no_grad():
+            img = self.decode(z)
+        return img
+
+
+
+
+
