@@ -112,13 +112,13 @@ def run(args):
 
     psnr_rec = compute_psnr_folder(args.workdir.joinpath('label'), args.workdir.joinpath('recon'), device=solver.vae.device)
     ssim_rec = compute_ssim_folder(args.workdir.joinpath('label'), args.workdir.joinpath('recon'), device=solver.vae.device)
-    fid_rec = compute_fid_folder(args.workdir.joinpath('label'), args.workdir.joinpath('recon'), device=solver.vae.device)
+    # fid_rec = compute_fid_folder(args.workdir.joinpath('label'), args.workdir.joinpath('recon'), device=solver.vae.device)
 
     print("\n================== Evaluation (rank0) ==================")
     print("[GT vs recon]")
     print(f"  PSNR: {psnr_rec:.4f}")
     print(f"  SSIM: {ssim_rec:.6f}")
-    print(f"  FID : {fid_rec:.4f}")
+    # print(f"  FID : {fid_rec:.4f}")
     print("========================================================\n")
 
 
@@ -141,7 +141,7 @@ if __name__ == "__main__":
 
     # problem params
     parser.add_argument('--task', type=str, default='sr_avgpool')
-    parser.add_argument('--method', type=str, default='flowdps')
+    parser.add_argument('--method', type=str, default='retroflowdps')
     parser.add_argument('--deg_scale', type=int, default=12)
 
     # solver params

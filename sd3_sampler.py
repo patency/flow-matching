@@ -391,9 +391,9 @@ class SD3FlowResample(SD3Euler):
 
 @register_solver("retroflowdps")
 class SD3FlowDPS(SD3Euler):
-    def data_consistency(self, z0t, operator, measurement, task, stepsize:int=30.0):
+    def data_consistency(self, z0t, operator, measurement, task, stepsize:int=22.0):
         z0t = z0t.requires_grad_(True)
-        num_iters = 3
+        num_iters = 2
         for _ in range(num_iters):
             x0t = self.decode(z0t).float()
             if "sr" in task:
@@ -446,9 +446,9 @@ class SD3FlowDPS(SD3Euler):
         timesteps = self.scheduler.timesteps
         sigmas = timesteps / self.scheduler.config.num_train_timesteps
 
-        # 回溯到“第14步”
-        # 如果你说的“第14步”是按人类计数(1-based)，这里就是 13
-        retro_idx = 13
+        # 默认 retrospection 参数：触发在最后几步，回溯至约三分之一处（更早回溯可能更强纠正）
+        retro_trigger_step = max(0, NFE - 2)
+        retro_idx = max(3, int(NFE * 0.35))
 
         # =========================
         # first pass
@@ -478,15 +478,15 @@ class SD3FlowDPS(SD3Euler):
             z0y = self.data_consistency(z0t, operator, measurement, task=task, stepsize=step_size)
             z0y = (1 - sigma) * z0t + sigma * z0y
 
-            # 在最后一步，利用当前 z 和 z0y 回溯到第14步
-            if i == NFE - 2:
+            # 在固定触发步（默认为 NFE-2），利用当前 z 和 z0y 回溯到 retro_idx
+            if i == retro_trigger_step:
                 sigma_retro = sigmas[retro_idx]
                 sigma_safe = sigma.clamp(min=1e-6) if torch.is_tensor(sigma) else max(sigma, 1e-6)
 
                 # 由当前 z_t 和改进后的 z0y 反推出对应的 z1
                 z1y = (z - (1 - sigma) * z0y) / sigma_safe
 
-                # 回溯到第14步对应的 sigma
+                # 回溯到目标 retro_idx 对应的 sigma
                 z = (1 - sigma_retro) * z0y + sigma_retro * z1y
 
                 do_retro = True
@@ -527,389 +527,15 @@ class SD3FlowDPS(SD3Euler):
                 noise = math.sqrt(sigma_next) * z1t + math.sqrt(1 - sigma_next) * torch.randn_like(z1t)
                 z = z0y + (sigma - delta) * (noise - z0y)
 
-        # decode
-        with torch.no_grad():
-            img = self.decode(z)
-        return img
+                # 额外数据一致性修正（每 4 步一次）
+                if (i - retro_idx) >= 0 and ((i - retro_idx) % 4 == 0):
+                    z = self.data_consistency(z, operator, measurement, task=task, stepsize=max(1.0, step_size * 0.6))
 
-@register_solver("flowdps")
-class SD3FlowDPS(SD3Euler):
-    def data_consistency(self, z0t, operator, measurement, task, stepsize:int=30.0):
-        z0t = z0t.requires_grad_(True)
-        num_iters = 3
-        for _ in range(num_iters):
-            x0t = self.decode(z0t).float()
-            if "sr" in task:
-                loss = torch.linalg.norm((operator.A_pinv(measurement) - operator.A_pinv(operator.A(x0t))).view(1, -1))
-            else:
-                loss = torch.linalg.norm((operator.At(measurement) - operator.At(operator.A(x0t))).view(1, -1))
-            grad = torch.autograd.grad(loss, z0t)[0].half()
-            z0t = z0t - stepsize*grad
-
-        return z0t.detach()
-
-    def sample(self, measurement, operator, task,
-               prompts: List[str], NFE:int,
-               img_shape: Optional[Tuple[int]]=None,
-               cfg_scale: float=1.0, batch_size: int = 1,
-               step_size: float=30.0,
-               latent:Optional[List[torch.Tensor]]=None,
-               prompt_emb:Optional[List[torch.Tensor]]=None,
-               null_emb:Optional[List[torch.Tensor]]=None):
-
-        imgH, imgW = img_shape if img_shape is not None else (1024, 1024)
-
-        # encode text prompts
-        with torch.no_grad():
-            if prompt_emb is None:
-                prompt_emb, pooled_emb = self.encode_prompt(prompts, batch_size)
-            else:
-                prompt_emb, pooled_emb = prompt_emb[0], prompt_emb[1]
-
-            prompt_emb.to(self.transformer.device)
-            pooled_emb.to(self.transformer.device)
-
-            if null_emb is None:
-                null_prompt_emb, null_pooled_emb = self.encode_prompt([""], batch_size)
-            else:
-                null_prompt_emb, null_pooled_emb = null_emb[0], null_emb[1]
-
-            null_prompt_emb.to(self.transformer.device)
-            null_pooled_emb.to(self.transformer.device)
-
-        # initialize latent
-        if latent is None:
-            z = self.initialize_latent((imgH, imgW), batch_size)
-        else:
-            z = latent
-
-        # timesteps (default option. You can make your custom here.)
-        self.scheduler.config.shift = 4.0
-        self.scheduler.set_timesteps(NFE, device=self.device)
-        timesteps = self.scheduler.timesteps
-        sigmas = timesteps / self.scheduler.config.num_train_timesteps
-
-        # Solve ODE
-        pbar = tqdm(timesteps, total=NFE, desc='SD3-FlowDPS')
-        for i, t in enumerate(pbar):
-            timestep = t.expand(z.shape[0]).to(self.device)
-
-            with torch.no_grad():
-                pred_v = self.predict_vector(z, timestep, prompt_emb, pooled_emb)
-                if cfg_scale != 1.0:
-                    pred_null_v = self.predict_vector(z, timestep, null_prompt_emb, null_pooled_emb)
-                else:
-                    pred_null_v = 0.0
-
-            sigma = sigmas[i]
-            sigma_next = sigmas[i+1] if i+1 < NFE else 0.0
-
-            # denoising
-            z0t = z - sigma * (pred_null_v + cfg_scale * (pred_v-pred_null_v))
-            z1t = z + (1-sigma) * (pred_null_v + cfg_scale * (pred_v-pred_null_v))
-            delta = sigma - sigma_next
-
-            if i < NFE:
-                z0y = self.data_consistency(z0t, operator, measurement, task=task, stepsize=step_size)
-                z0y = (1-sigma) * z0t + sigma * z0y
-
-            # renoising
-            noise = math.sqrt(sigma_next) * z1t + math.sqrt(1-sigma_next) * torch.randn_like(z1t)
-            z = z0y + (sigma-delta) * (noise - z0y)
-            #equal to z = (1 - sigma_next) * z0y + sigma_next * noise
+        # 最后再做一次数据一致性微调
+        z = self.data_consistency(z, operator, measurement, task=task, stepsize=max(1.0, step_size * 0.4))
 
         # decode
         with torch.no_grad():
             img = self.decode(z)
         return img
-
-@register_solver("flowchef")
-class SD3FlowChef(SD3Euler):
-    def data_consistency(self, z0t, operator, measurement, task):
-        z0t = z0t.requires_grad_(True)
-        x0t = self.decode(z0t).float()
-        if "sr" in task:
-            loss = torch.linalg.norm((operator.A_pinv(measurement) - operator.A_pinv(operator.A(x0t))).view(1, -1))
-        else:
-            loss = torch.linalg.norm((operator.At(measurement) - operator.At(operator.A(x0t))).view(1, -1))
-        grad = torch.autograd.grad(loss, z0t)[0].half()
-        return grad.detach()
-
-
-    def sample(self, measurement, operator, task,
-               prompts: List[str], NFE:int,
-               img_shape: Optional[Tuple[int]]=None,
-               cfg_scale: float=1.0, batch_size: int = 1,
-               step_size: float=30.0,
-               latent:Optional[List[torch.Tensor]]=None,
-               prompt_emb:Optional[List[torch.Tensor]]=None,
-               null_emb:Optional[List[torch.Tensor]]=None):
-
-        imgH, imgW = img_shape if img_shape is not None else (1024, 1024)
-
-        # encode text prompts
-        with torch.no_grad():
-            if prompt_emb is None:
-                prompt_emb, pooled_emb = self.encode_prompt(prompts, batch_size)
-            else:
-                prompt_emb, pooled_emb = prompt_emb[0], prompt_emb[1]
-
-            prompt_emb.to(self.transformer.device)
-            pooled_emb.to(self.transformer.device)
-
-            if null_emb is None:
-                null_prompt_emb, null_pooled_emb = self.encode_prompt([""], batch_size)
-            else:
-                null_prompt_emb, null_pooled_emb = null_emb[0], null_emb[1]
-
-            null_prompt_emb.to(self.transformer.device)
-            null_pooled_emb.to(self.transformer.device)
-
-        # initialize latent
-        if latent is None:
-            z = self.initialize_latent((imgH, imgW), batch_size)
-        else:
-            z = latent
-
-        # timesteps (default option. You can make your custom here.)
-        self.scheduler.config.shift = 4.0
-        self.scheduler.set_timesteps(NFE, device=self.device)
-        timesteps = self.scheduler.timesteps
-        sigmas = timesteps / self.scheduler.config.num_train_timesteps
-
-        # Solve ODE
-        pbar = tqdm(timesteps, total=NFE, desc='SD3-FlowChef')
-        for i, t in enumerate(pbar):
-            timestep = t.expand(z.shape[0]).to(self.device)
-
-            with torch.no_grad():
-                pred_v = self.predict_vector(z, timestep, prompt_emb, pooled_emb)
-                if cfg_scale != 1.0:
-                    pred_null_v = self.predict_vector(z, timestep, null_prompt_emb, null_pooled_emb)
-                else:
-                    pred_null_v = 0.0
-
-            sigma = sigmas[i]
-            sigma_next = sigmas[i+1] if i+1 < NFE else 0.0
-
-            # denoising
-            z0t = z - sigma * (pred_null_v + cfg_scale * (pred_v-pred_null_v))
-            z1t = z + (1-sigma) * (pred_null_v + cfg_scale * (pred_v-pred_null_v))
-            delta = sigma - sigma_next
-
-            if i < NFE:
-                grad = self.data_consistency(z0t, operator, measurement, task=task)
-
-            # renoising
-            z = z0t + (sigma-delta) * (z1t - z0t) - step_size*grad
-            # break the graph for next step
-            z = z.detach()
-
-        # decode
-        with torch.no_grad():
-            img = self.decode(z)
-        return img
-
-
-@register_solver('psld')
-class SD3PSLD(SD3Euler):
-    def sample(self, measurement, operator, task,            
-               prompts: List[str], NFE:int,
-               img_shape: Optional[Tuple[int]]=None,
-               cfg_scale: float=1.0, batch_size: int = 1,
-               step_size: float=50.0,
-               latent:Optional[List[torch.Tensor]]=None,
-               prompt_emb:Optional[List[torch.Tensor]]=None,
-               null_emb:Optional[List[torch.Tensor]]=None):
-
-        imgH, imgW = img_shape if img_shape is not None else (1024, 1024)
-
-        # encode text prompts
-        with torch.no_grad():
-            if prompt_emb is None:
-                prompt_emb, pooled_emb = self.encode_prompt(prompts, batch_size)
-            else:
-                prompt_emb, pooled_emb = prompt_emb[0], prompt_emb[1]
-
-            prompt_emb.to(self.transformer.device)
-            pooled_emb.to(self.transformer.device)
-
-            if null_emb is None:
-                null_prompt_emb, null_pooled_emb = self.encode_prompt([""], batch_size)
-            else:
-                null_prompt_emb, null_pooled_emb = null_emb[0], null_emb[1]
-
-            null_prompt_emb.to(self.transformer.device)
-            null_pooled_emb.to(self.transformer.device)
-
-        # initialize latent
-        if latent is None:
-            z = self.initialize_latent((imgH, imgW), batch_size)
-        else:
-            z = latent
-
-        # timesteps (default option. You can make your custom here.)
-        self.scheduler.config.shift = 4.0
-        self.scheduler.set_timesteps(NFE, device=self.device)
-        timesteps = self.scheduler.timesteps
-        sigmas = timesteps / self.scheduler.config.num_train_timesteps
-
-        # Solve ODE
-        pbar = tqdm(timesteps, total=NFE, desc='SD3-PSLD')
-        for i, t in enumerate(pbar):
-            timestep = t.expand(z.shape[0]).to(self.device)
-
-            # freeze model gradients during prediction
-            with torch.no_grad():
-                pred_v = self.predict_vector(z, timestep, prompt_emb, pooled_emb)
-                if cfg_scale != 1.0:
-                    pred_null_v = self.predict_vector(z, timestep, null_prompt_emb, null_pooled_emb)
-                else:
-                    pred_null_v = 0.0
-                pred_v = pred_null_v + cfg_scale * (pred_v - pred_null_v)
-
-            # enable grad only for DC residue w.r.t z
-            z = z.detach().requires_grad_(True)
-
-            sigma = sigmas[i]
-            sigma_next = sigmas[i+1] if i+1 < NFE else 0.0
-
-            # denoising
-            z0t = z - sigma * pred_v
-            z1t = z + (1-sigma) * pred_v
-            delta = sigma - sigma_next
-
-            # DC & goodness of z0t
-            x_pred = self.decode(z0t).float()
-            meas = measurement.to(x_pred.device, dtype=x_pred.dtype)
-            y_pred = operator.A(x_pred)
-            y_residue = torch.linalg.norm((y_pred - meas).view(1, -1))
-
-            if "sr" in task:
-                ortho_proj = x_pred.reshape(1, -1) - operator.A_pinv(y_pred).reshape(1, -1)
-                parallel_proj = operator.A_pinv(measurement).reshape(1, -1)
-            else:
-                ortho_proj = x_pred.reshape(1, -1) - operator.At(y_pred).reshape(1, -1)
-                parallel_proj = operator.At(measurement).reshape(1, -1)
-            proj = parallel_proj + ortho_proj
-
-            proj_img = proj.reshape(1, 3, imgH, imgW).clamp(-1, 1)
-            recon_z = self.encode(proj_img.half())
-            z0_residue = torch.linalg.norm((z0t - recon_z).view(1, -1))
-
-            residue = 1 * y_residue + 0.05 * z0_residue
-            grad = torch.autograd.grad(residue, z)[0]
-
-            # renoising
-            z = z0t + (sigma-delta) * (z1t - z0t) - step_size*grad
-
-        # decode
-        with torch.no_grad():
-            img = self.decode(z)
-        return img
-
-
-@register_solver('psld_simple')
-class SD3PSLD(SD3Euler):
-    def sample(self, measurement, operator, task,            
-               prompts: List[str], NFE:int,
-               img_shape: Optional[Tuple[int]]=None,
-               cfg_scale: float=1.0, batch_size: int = 1,
-               step_size: float=30.0,
-               latent:Optional[List[torch.Tensor]]=None,
-               prompt_emb:Optional[List[torch.Tensor]]=None,
-               null_emb:Optional[List[torch.Tensor]]=None):
-
-        imgH, imgW = img_shape if img_shape is not None else (1024, 1024)
-
-        # encode text prompts
-        with torch.no_grad():
-            if prompt_emb is None:
-                prompt_emb, pooled_emb = self.encode_prompt(prompts, batch_size)
-            else:
-                prompt_emb, pooled_emb = prompt_emb[0], prompt_emb[1]
-
-            prompt_emb.to(self.transformer.device)
-            pooled_emb.to(self.transformer.device)
-
-            if null_emb is None:
-                null_prompt_emb, null_pooled_emb = self.encode_prompt([""], batch_size)
-            else:
-                null_prompt_emb, null_pooled_emb = null_emb[0], null_emb[1]
-
-            null_prompt_emb.to(self.transformer.device)
-            null_pooled_emb.to(self.transformer.device)
-
-        # initialize latent
-        if latent is None:
-            z = self.initialize_latent((imgH, imgW), batch_size)
-        else:
-            z = latent
-
-        # timesteps (default option. You can make your custom here.)
-        self.scheduler.config.shift = 4.0
-        self.scheduler.set_timesteps(NFE, device=self.device)
-        timesteps = self.scheduler.timesteps
-        sigmas = timesteps / self.scheduler.config.num_train_timesteps
-
-        # Solve ODE
-        pbar = tqdm(timesteps, total=NFE, desc='SD3-PSLD-simple')
-        for i, t in enumerate(pbar):
-            timestep = t.expand(z.shape[0]).to(self.device)
-
-            # freeze model gradients during prediction
-            with torch.no_grad():
-                pred_v = self.predict_vector(z, timestep, prompt_emb, pooled_emb)
-                if cfg_scale != 1.0:
-                    pred_null_v = self.predict_vector(z, timestep, null_prompt_emb, null_pooled_emb)
-                else:
-                    pred_null_v = 0.0
-                pred_v = pred_null_v + cfg_scale * (pred_v - pred_null_v)
-
-            # enable grad only for DC residue w.r.t z
-            z = z.detach().requires_grad_(True)
-
-            sigma = sigmas[i]
-            sigma_next = sigmas[i+1] if i+1 < NFE else 0.0
-
-            # denoising
-            z0t = z - sigma * pred_v
-            z1t = z + (1-sigma) * pred_v
-            delta = sigma - sigma_next
-
-            # DC & goodness of z0t
-            x_pred = self.decode(z0t).float()
-            meas = measurement.to(x_pred.device, dtype=x_pred.dtype)
-            y_pred = operator.A(x_pred)
-            y_residue = torch.linalg.norm((y_pred - meas).view(1, -1))
-
-            if "sr" in task:
-                ortho_proj = x_pred.reshape(1, -1) - operator.A_pinv(y_pred).reshape(1, -1)
-                parallel_proj = operator.A_pinv(measurement).reshape(1, -1)
-            else:
-                ortho_proj = x_pred.reshape(1, -1) - operator.At(y_pred).reshape(1, -1)
-                parallel_proj = operator.At(measurement).reshape(1, -1)
-            proj = parallel_proj + ortho_proj
-
-            proj_img = proj.reshape(1, 3, imgH, imgW).clamp(-1, 1)
-            recon_z = self.encode(proj_img.half())
-            z0_residue = torch.linalg.norm((z0t - recon_z).view(1, -1))
-
-            residue = 1 * y_residue + 0.05 * z0_residue
-            grad = torch.autograd.grad(residue, z)[0]
-
-            precision = None   # 若有 Σ^{-1}（P）可用，这里换成张量 / 可调用算子
-            grad_orth = project_orth_to(pred_v.detach(), grad, precision=precision)
-
-            # renoising
-            z = z0t + (sigma-delta) * (z1t - z0t) - step_size*grad_orth
-
-        # decode
-        with torch.no_grad():
-            img = self.decode(z)
-        return img
-
-
-
-
 
