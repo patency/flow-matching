@@ -115,17 +115,16 @@ def deg_deblur_uni(deg_config, device):
 
 @register_degradation(name='deblur_gauss')
 def deg_deblur_gauss(deg_config, device):
-    sigma = 3.0
-    pdf = lambda x: torch.exp(torch.Tensor([-0.5 * (x / sigma) ** 2]))
-    size = deg_config.deg_scale
-    ker = []
-    for k in range(-size//2, size//2):
-        ker.append(pdf(k))
-    kernel = torch.Tensor(ker).to(device)
-    A_funcs = svd_op.Deblurring(kernel / kernel.sum(),
-                                deg_config.channels,
-                                deg_config.image_size,
-                                device)
+    # See EqM_private/functions/degradation.py for detailed explanation.
+    # For simulation of gaussian blur we prefer the convolution operator rather
+    # than the SVD-based deblurring object which shrinks the dynamic range.
+    kernel_size = int(deg_config.deg_scale)
+    intensity = getattr(deg_config, 'intensity', 3.0)
+    A_funcs = measurements.GaussialBlurOperator(
+        kernel_size=kernel_size,
+        intensity=intensity,
+        device=device,
+    )
     return A_funcs
 
 @register_degradation(name='deblur_aniso')
@@ -179,10 +178,12 @@ def deg_sr_avgpool_general(deg_config, device):
 
 @register_degradation(name='deblur_gauss_gen')
 def deg_deblur_guass_general(deg_config, device):
+    kernel_size = int(deg_config.deg_scale)
+    intensity = getattr(deg_config, 'intensity', 3.0)
     A_funcs = measurements.GaussialBlurOperator(
-        kernel_size=deg_config.deg_scale,
-        intensity=3.0,
-        device=device
+        kernel_size=kernel_size,
+        intensity=intensity,
+        device=device,
     )
     return A_funcs
 

@@ -12,6 +12,7 @@ from torchvision import transforms
 from util import set_seed, get_img_list, process_text
 from sd3_sampler import get_solver
 from functions.degradation import get_degradation
+from utils.eval_util import compute_psnr_folder, compute_ssim_folder, compute_fid_folder, print_stats
 
 @torch.no_grad
 def precompute(args, prompts:List[str], solver) -> List[torch.Tensor]:
@@ -104,9 +105,21 @@ def run(args):
         save_image(img,
                    args.workdir.joinpath(f'label/{str(i).zfill(4)}.png'),
                    normalize=True)
+        
 
         if (i+1) == args.num_samples:
             break
+
+    psnr_rec = compute_psnr_folder(args.workdir.joinpath('label'), args.workdir.joinpath('recon'), device=solver.vae.device)
+    ssim_rec = compute_ssim_folder(args.workdir.joinpath('label'), args.workdir.joinpath('recon'), device=solver.vae.device)
+    fid_rec = compute_fid_folder(args.workdir.joinpath('label'), args.workdir.joinpath('recon'), device=solver.vae.device)
+
+    print("\n================== Evaluation (rank0) ==================")
+    print("[GT vs recon]")
+    print(f"  PSNR: {psnr_rec:.4f}")
+    print(f"  SSIM: {ssim_rec:.6f}")
+    print(f"  FID : {fid_rec:.4f}")
+    print("========================================================\n")
 
 
 if __name__ == "__main__":
@@ -145,4 +158,3 @@ if __name__ == "__main__":
 
     # run main script
     run(args)
-

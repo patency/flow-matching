@@ -389,6 +389,149 @@ class SD3FlowResample(SD3Euler):
             img = self.decode(z)
         return img
 
+@register_solver("retroflowdps")
+class SD3FlowDPS(SD3Euler):
+    def data_consistency(self, z0t, operator, measurement, task, stepsize:int=30.0):
+        z0t = z0t.requires_grad_(True)
+        num_iters = 3
+        for _ in range(num_iters):
+            x0t = self.decode(z0t).float()
+            if "sr" in task:
+                loss = torch.linalg.norm((operator.A_pinv(measurement) - operator.A_pinv(operator.A(x0t))).view(1, -1))
+            else:
+                loss = torch.linalg.norm((operator.At(measurement) - operator.At(operator.A(x0t))).view(1, -1))
+            grad = torch.autograd.grad(loss, z0t)[0].half()
+            z0t = z0t - stepsize*grad
+
+        return z0t.detach()
+
+    def sample(self, measurement, operator, task,
+            prompts: List[str], NFE:int,
+            img_shape: Optional[Tuple[int]]=None,
+            cfg_scale: float=1.0, batch_size: int = 1,
+            step_size: float=30.0,
+            latent:Optional[List[torch.Tensor]]=None,
+            prompt_emb:Optional[List[torch.Tensor]]=None,
+            null_emb:Optional[List[torch.Tensor]]=None):
+
+        imgH, imgW = img_shape if img_shape is not None else (1024, 1024)
+
+        # encode text prompts
+        with torch.no_grad():
+            if prompt_emb is None:
+                prompt_emb, pooled_emb = self.encode_prompt(prompts, batch_size)
+            else:
+                prompt_emb, pooled_emb = prompt_emb[0], prompt_emb[1]
+
+            prompt_emb = prompt_emb.to(self.transformer.device)
+            pooled_emb = pooled_emb.to(self.transformer.device)
+
+            if null_emb is None:
+                null_prompt_emb, null_pooled_emb = self.encode_prompt([""], batch_size)
+            else:
+                null_prompt_emb, null_pooled_emb = null_emb[0], null_emb[1]
+
+            null_prompt_emb = null_prompt_emb.to(self.transformer.device)
+            null_pooled_emb = null_pooled_emb.to(self.transformer.device)
+
+        # initialize latent
+        if latent is None:
+            z = self.initialize_latent((imgH, imgW), batch_size)
+        else:
+            z = latent
+
+        # timesteps
+        self.scheduler.config.shift = 4.0
+        self.scheduler.set_timesteps(NFE, device=self.device)
+        timesteps = self.scheduler.timesteps
+        sigmas = timesteps / self.scheduler.config.num_train_timesteps
+
+        # 回溯到“第14步”
+        # 如果你说的“第14步”是按人类计数(1-based)，这里就是 13
+        retro_idx = 13
+
+        # =========================
+        # first pass
+        # =========================
+        pbar = tqdm(timesteps, total=NFE, desc='SD3-FlowDPS')
+        do_retro = False
+
+        for i, t in enumerate(pbar):
+            timestep = t.expand(z.shape[0]).to(self.device)
+
+            with torch.no_grad():
+                pred_v = self.predict_vector(z, timestep, prompt_emb, pooled_emb)
+                if cfg_scale != 1.0:
+                    pred_null_v = self.predict_vector(z, timestep, null_prompt_emb, null_pooled_emb)
+                else:
+                    pred_null_v = 0.0
+
+            sigma = sigmas[i]
+            sigma_next = sigmas[i+1] if i+1 < NFE else 0.0
+
+            # denoising
+            pred = pred_null_v + cfg_scale * (pred_v - pred_null_v)
+            z0t = z - sigma * pred
+            z1t = z + (1 - sigma) * pred
+            delta = sigma - sigma_next
+
+            z0y = self.data_consistency(z0t, operator, measurement, task=task, stepsize=step_size)
+            z0y = (1 - sigma) * z0t + sigma * z0y
+
+            # 在最后一步，利用当前 z 和 z0y 回溯到第14步
+            if i == NFE - 2:
+                sigma_retro = sigmas[retro_idx]
+                sigma_safe = sigma.clamp(min=1e-6) if torch.is_tensor(sigma) else max(sigma, 1e-6)
+
+                # 由当前 z_t 和改进后的 z0y 反推出对应的 z1
+                z1y = (z - (1 - sigma) * z0y) / sigma_safe
+
+                # 回溯到第14步对应的 sigma
+                z = (1 - sigma_retro) * z0y + sigma_retro * z1y
+
+                do_retro = True
+                break
+
+            # normal update
+            noise = math.sqrt(sigma_next) * z1t + math.sqrt(1 - sigma_next) * torch.randn_like(z1t)
+            z = z0y + (sigma - delta) * (noise - z0y)
+            # equal to z = (1 - sigma_next) * z0y + sigma_next * noise
+
+        # =========================
+        # resample from step 14 to NFE
+        # =========================
+        if do_retro:
+            pbar2 = tqdm(range(retro_idx, NFE), total=NFE-retro_idx, desc='Retro resample from step 14')
+            for i in pbar2:
+                t = timesteps[i]
+                timestep = t.expand(z.shape[0]).to(self.device)
+
+                with torch.no_grad():
+                    pred_v = self.predict_vector(z, timestep, prompt_emb, pooled_emb)
+                    if cfg_scale != 1.0:
+                        pred_null_v = self.predict_vector(z, timestep, null_prompt_emb, null_pooled_emb)
+                    else:
+                        pred_null_v = 0.0
+
+                sigma = sigmas[i]
+                sigma_next = sigmas[i+1] if i+1 < NFE else 0.0
+
+                pred = pred_null_v + cfg_scale * (pred_v - pred_null_v)
+                z0t = z - sigma * pred
+                z1t = z + (1 - sigma) * pred
+                delta = sigma - sigma_next
+
+                z0y = self.data_consistency(z0t, operator, measurement, task=task, stepsize=step_size)
+                z0y = (1 - sigma) * z0t + sigma * z0y
+
+                noise = math.sqrt(sigma_next) * z1t + math.sqrt(1 - sigma_next) * torch.randn_like(z1t)
+                z = z0y + (sigma - delta) * (noise - z0y)
+
+        # decode
+        with torch.no_grad():
+            img = self.decode(z)
+        return img
+
 @register_solver("flowdps")
 class SD3FlowDPS(SD3Euler):
     def data_consistency(self, z0t, operator, measurement, task, stepsize:int=30.0):
@@ -473,6 +616,7 @@ class SD3FlowDPS(SD3Euler):
             # renoising
             noise = math.sqrt(sigma_next) * z1t + math.sqrt(1-sigma_next) * torch.randn_like(z1t)
             z = z0y + (sigma-delta) * (noise - z0y)
+            #equal to z = (1 - sigma_next) * z0y + sigma_next * noise
 
         # decode
         with torch.no_grad():
@@ -556,11 +700,8 @@ class SD3FlowChef(SD3Euler):
             if i < NFE:
                 grad = self.data_consistency(z0t, operator, measurement, task=task)
 
-            precision = None   # 若有 Σ^{-1}（P）可用，这里换成张量 / 可调用算子
-            grad_orth = project_orth_to(pred_v.detach(), grad, precision=precision)
-
             # renoising
-            z = z0t + (sigma-delta) * (z1t - z0t) - step_size*grad_orth
+            z = z0t + (sigma-delta) * (z1t - z0t) - step_size*grad
             # break the graph for next step
             z = z.detach()
 
@@ -667,40 +808,6 @@ class SD3PSLD(SD3Euler):
             img = self.decode(z)
         return img
 
-
-def _apply_precision(x, precision=None):
-    """
-    将度量中的“精度矩阵” P (= Σ^{-1}) 作用到张量 x 上：
-    - precision=None: 欧氏度量，等价于 P = I，直接返回 x
-    - precision 是可调用对象: 视作线性算子，返回 precision(x)
-    - precision 是张量: 视作对角/逐元素权重，返回 precision * x （支持广播）
-    """
-    if precision is None:
-        return x
-    if callable(precision):
-        return precision(x)
-    return precision * x  # 假设逐元素（对角）权重；需要全矩阵时改为显式 matmul
-
-def project_orth_to(v, g, precision=None, eps: float = 1e-12):
-    """
-    将 g 正交到 v（即去掉 g 在 v 方向上的分量），返回 g_orth
-    <a, b>_g = a^T P b，其中 P = Σ^{-1} 由 precision 指定。
-    形状要求：v, g 同形状，支持批维度 (B, ...)
-
-    g_orth = g - ( <g, v>_g / <v, v>_g ) * v
-    """
-    # 计算加权内积所需的 P v 和 P g
-    Pv = _apply_precision(v, precision)
-    # <g, v>_g = sum(g * (P v))
-    num = (g * Pv).flatten(1).sum(dim=1, keepdim=True)  # (B,1)
-
-    # <v, v>_g = sum(v * (P v))
-    denom = (v * Pv).flatten(1).sum(dim=1, keepdim=True).clamp_min(eps)  # (B,1)
-
-    # 缩放系数按样本广播到张量形状
-    scale = (num / denom).view(g.shape[0], *([1] * (g.dim() - 1)))
-    g_orth = g - scale * v
-    return g_orth
 
 @register_solver('psld_simple')
 class SD3PSLD(SD3Euler):
