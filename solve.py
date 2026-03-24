@@ -2,6 +2,8 @@ import argparse
 from pathlib import Path
 from typing import List
 
+import yaml
+
 from munch import munchify
 from PIL import Image
 from tqdm import tqdm
@@ -12,6 +14,7 @@ from torchvision import transforms
 from util import set_seed, get_img_list, process_text
 from sd3_sampler import get_solver
 from functions.degradation import get_degradation
+from functions.dataloader import get_dataloader
 from utils.eval_util import compute_psnr_folder, compute_ssim_folder, compute_fid_folder, print_stats
 
 @torch.no_grad
@@ -30,6 +33,12 @@ def precompute(args, prompts:List[str], solver) -> List[torch.Tensor]:
 def run(args):
     # load solver
     solver = get_solver(args.method)
+    local_batch_size = 8
+    
+    cfg_data = yaml.safe_load(open(args.dataset))
+    dataloader_cfg = dict(cfg_data["dataloader"])
+    dataloader_cfg["batch_size"] = local_batch_size
+    loader = get_dataloader(**dataloader_cfg)
 
     # load text prompts
     prompts = process_text(prompt=args.prompt, prompt_file=args.prompt_file)
@@ -112,13 +121,13 @@ def run(args):
 
     psnr_rec = compute_psnr_folder(args.workdir.joinpath('label'), args.workdir.joinpath('recon'), device=solver.vae.device)
     ssim_rec = compute_ssim_folder(args.workdir.joinpath('label'), args.workdir.joinpath('recon'), device=solver.vae.device)
-    fid_rec = compute_fid_folder(args.workdir.joinpath('label'), args.workdir.joinpath('recon'), device=solver.vae.device)
+    # fid_rec = compute_fid_folder(args.workdir.joinpath('label'), args.workdir.joinpath('recon'), device=solver.vae.device)
 
     print("\n================== Evaluation (rank0) ==================")
     print("[GT vs recon]")
     print(f"  PSNR: {psnr_rec:.4f}")
     print(f"  SSIM: {ssim_rec:.6f}")
-    print(f"  FID : {fid_rec:.4f}")
+    # print(f"  FID : {fid_rec:.4f}")
     print("========================================================\n")
 
 
@@ -138,6 +147,7 @@ if __name__ == "__main__":
     parser.add_argument('--prompt', type=str, default=None)
     parser.add_argument('--prompt_file', type=str, default=None)
     parser.add_argument('--num_samples', type=int, default=-1)
+    parser.add_argument("--dataset", type=str, default="configs/ILSVRC_test.yml")
 
     # problem params
     parser.add_argument('--task', type=str, default='sr_avgpool')

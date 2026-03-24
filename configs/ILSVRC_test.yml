@@ -1,0 +1,18 @@
+dataloader:
+  name: "image_folder"
+  root: "/root/data1/ptc/EqM_private/data/ILSVRC/Data/DET/test"
+
+  image_size: 256
+
+  shuffle: true
+  num_workers: 4
+  drop_last: false
+  pin_memory: true
+
+  device: "cuda:0"
+
+  # 下面这些会通过 **dataset_kwargs 传给数据集构造函数
+  extensions:
+    - ".jpg"
+    - ".jpeg"
+    - ".png"

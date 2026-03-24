@@ -448,7 +448,7 @@ class SD3FlowDPS(SD3Euler):
 
         # 回溯到“第14步”
         # 如果你说的“第14步”是按人类计数(1-based)，这里就是 13
-        retro_idx = 13
+        retro_idx = 3
 
         # =========================
         # first pass
