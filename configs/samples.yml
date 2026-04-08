@@ -1,0 +1,18 @@
+dataloader:
+  name: "image_folder"
+  root: "samples"
+
+  image_size: 768
+
+  shuffle: false
+  num_workers: 1
+  drop_last: false
+  pin_memory: true
+
+  device: "cuda:0"
+
+  # 下面这些会通过 **dataset_kwargs 传给数据集构造函数
+  extensions:
+    - ".jpg"
+    - ".jpeg"
+    - ".png"
