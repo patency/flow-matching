@@ -147,7 +147,7 @@ if __name__ == "__main__":
     parser.add_argument('--prompt', type=str, default=None)
     parser.add_argument('--prompt_file', type=str, default=None)
     parser.add_argument('--num_samples', type=int, default=-1)
-    parser.add_argument("--dataset", type=str, default="configs/ILSVRC_test.yml")
+    parser.add_argument("--dataset", type=str, default="configs/DIV2K_train.yml")
 
     # problem params
     parser.add_argument('--task', type=str, default='sr_avgpool')

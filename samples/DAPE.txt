@@ -1,0 +1,3 @@
+afhq_example.jpg: brown, corgi, dog, hang, leash, mouth, neckband, pink
+div2k_example.png: animal, close-up, eye, grass, green, hide, panda, red, red panda, stare, tree
+ffhq_example.png: baby, bangs, child, eye, face, girl, hair, shirt, stare, white

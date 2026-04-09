@@ -37,44 +37,7 @@ git clone https://github.com/LeviBorodenko/motionblur.git
 
 You can quickly check the results using the following examples.
 
-**Example 1. Super-resolution x 12 (avg-pool) / Dog (using dataloader)**
-```
-python solve.py \
-    --dataset configs/samples.yml \
-    --prompt "a photo of a closed face of a dog" \
-    --task sr_avgpool \
-    --deg_scale 12 \
-    --efficient_memory \
-    --method retroflowdps \
-    --num_samples 1;
-```
-
-**Example 2. Super-resolution x 12 (bicubic) / Animal (using DAPE prompts)**
-```
-python solve.py \
-    --dataset configs/samples.yml \
-    --prompt_file samples/prompts.txt \
-    --task sr_bicubic \
-    --deg_scale 12 \
-    --efficient_memory \
-    --method retroflowdps \
-    --num_samples 1;
-```
-> The prompts in `samples/prompts.txt` can be extracted by DAPE from the given measurements.
-
-**Example 3. Motion Deblur / Human**
-```
-python solve.py \
-    --dataset configs/samples.yml \
-    --prompt "a photo of a closed face" \
-    --task deblur_motion \
-    --deg_scale 61 \
-    --efficient_memory \
-    --method retroflowdps \
-    --num_samples 1;
-```
-
-**Legacy Example (single image, deprecated)**
+**Example 1. Super-resolution x 12 (avg-pool) / Dog**
 ```
 python solve.py \
     --img_size 768 \
@@ -82,6 +45,29 @@ python solve.py \
     --prompt "a photo of a closed face of a dog" \
     --task sr_avgpool \
     --deg_scale 12 \
+    --efficient_memory;
+```
+
+**Example 2. Super-resolution x 12 (bicubic) / Animal**
+```
+python solve.py \
+    --img_size 768 \
+    --img_path samples/div2k_example.png \
+    --prompt "a high quality photo of animal, bush, close-up, fox, grass, green, greenery, hide, panda, red, red panda, stare" \
+    --task sr_bicubic \
+    --deg_scale 12 \
+    --efficient_memory;
+```
+> The prompt (after "a high quality photo of") is extracted by DAPE from the given measurement.
+
+**Example 3. Motion Deblur / Human**
+```
+python solve.py \
+    --img_size 768 \
+    --img_path samples/ffhq_example.png \
+    --prompt "a photo of a closed face" \
+    --task deblur_motion \
+    --deg_scale 61 \
     --efficient_memory;
 ```
 
