@@ -83,11 +83,20 @@ class _DeviceDataLoader:
         self.dataloader = dataloader
         self.device = torch.device(device)
 
+    def _to_device(self, batch):
+        if torch.is_tensor(batch):
+            return batch.to(self.device)
+        if isinstance(batch, tuple):
+            return tuple(self._to_device(x) for x in batch)
+        if isinstance(batch, list):
+            return [self._to_device(x) for x in batch]
+        if isinstance(batch, dict):
+            return {k: self._to_device(v) for k, v in batch.items()}
+        return batch
+
     def __iter__(self):
         for batch in self.dataloader:
-            # 这里只考虑 batch 是 Tensor 的情况，若以后你想返回 (img, label)，
-            # 可以改成对每个元素递归 .to(self.device)
-            yield batch.to(self.device)
+            yield self._to_device(batch)
 
     def __len__(self):
         return len(self.dataloader)
@@ -189,3 +198,60 @@ class ImageFolderDataset(BaseImageDataset):
         img = Image.open(path).convert("RGB")
         img = self.transform(img)
         return img
+
+
+@register_dataset("DIV2K")
+class DIV2KDataset(BaseImageDataset):
+    def __init__(
+        self,
+        root: str,
+        image_size: Optional[int] = None,
+        extensions: Tuple[str, ...] = (".png",),
+        prompt_file: Optional[str] = None,
+    ):
+        super().__init__(root=root, image_size=image_size, extensions=extensions)
+
+        if image_size is not None:
+            self.transform = T.Compose([
+                T.Resize((image_size, image_size)),
+                T.ToTensor(),
+            ])
+        else:
+            self.transform = T.ToTensor()
+
+        if prompt_file is None:
+            raise RuntimeError("'prompt_file' must be provided for DIV2K dataset.")
+        self.prompt_texts = self._load_prompts(prompt_file)
+
+    def _load_prompts(self, prompt_file: str) -> List[str]:
+        with open(prompt_file, "r", encoding="utf-8") as f:
+            lines = [x.strip() for x in f.readlines() if x.strip() != ""]
+
+        basename_to_prompt = {}
+        for line in lines:
+            if ":" not in line:
+                raise RuntimeError(
+                    f"Each line in '{prompt_file}' must be in '<filename>: <prompt>' format."
+                )
+            key, prompt = line.split(":", 1)
+            basename_to_prompt[key.strip()] = prompt.strip()
+
+        prompts = []
+        for path in self.image_paths:
+            name = os.path.basename(path)
+            if name not in basename_to_prompt:
+                raise RuntimeError(
+                    f"Prompt for image '{name}' is missing in '{prompt_file}'."
+                )
+            prompts.append(basename_to_prompt[name])
+        return prompts
+
+    def _load_image(self, path: str) -> torch.Tensor:
+        img = Image.open(path).convert("RGB")
+        img = self.transform(img)
+        return img
+
+    def __getitem__(self, idx: int):
+        path = self.image_paths[idx]
+        img = self._load_image(path)
+        return img, self.prompt_texts[idx]

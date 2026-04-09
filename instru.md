@@ -1,4 +1,6 @@
 **Example 1. solve Super-resolution x 12 (avg-pool) / Dog**
+
+python batch_solve.py --dataset configs/DIV2K_train.yml --num_samples 8 --method flowdps --clean_workdir
 ```
 # flowdps
 python solve.py \

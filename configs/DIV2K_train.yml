@@ -1,5 +1,5 @@
 dataloader:
-  name: "image_folder"
+  name: "DIV2K"
   root: "/root/data3/ptc/datas/DIV2K/DIV2K_train_HR"
 
   image_size: 768
@@ -12,5 +12,6 @@ dataloader:
   device: "cuda:0"
 
   # 下面这些会通过 **dataset_kwargs 传给数据集构造函数
+  prompt_file: "samples/DAPE_DIV2K_train_HR.txt"
   extensions:
     - ".png"

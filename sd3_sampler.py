@@ -149,7 +149,7 @@ class SD3Euler(StableDiffusion3Base):
             pooled_emb = pooled_emb.to(self.transformer.device)
 
             if null_emb is None:
-                null_prompt_emb, null_pooled_emb = self.encode_prompt([""])
+                null_prompt_emb, null_pooled_emb = self.encode_prompt([""] * batch_size, batch_size)
             else:
                 null_prompt_emb, null_pooled_emb = null_emb[0], null_emb[1]
 
@@ -205,7 +205,7 @@ class SD3Euler(StableDiffusion3Base):
             pooled_emb = pooled_emb.to(self.transformer.device)
 
             if null_emb is None:
-                null_prompt_emb, null_pooled_emb = self.encode_prompt([""], batch_size)
+                null_prompt_emb, null_pooled_emb = self.encode_prompt([""] * batch_size, batch_size)
             else:
                 null_prompt_emb, null_pooled_emb = null_emb[0], null_emb[1]
 
@@ -281,7 +281,7 @@ class SD3FlowDPS(SD3Euler):
             pooled_emb = pooled_emb.to(self.transformer.device)
 
             if null_emb is None:
-                null_prompt_emb, null_pooled_emb = self.encode_prompt([""], batch_size)
+                null_prompt_emb, null_pooled_emb = self.encode_prompt([""] * batch_size, batch_size)
             else:
                 null_prompt_emb, null_pooled_emb = null_emb[0], null_emb[1]
 
@@ -424,7 +424,7 @@ class SD3FlowDPS(SD3Euler):
             pooled_emb.to(self.transformer.device)
 
             if null_emb is None:
-                null_prompt_emb, null_pooled_emb = self.encode_prompt([""], batch_size)
+                null_prompt_emb, null_pooled_emb = self.encode_prompt([""] * batch_size, batch_size)
             else:
                 null_prompt_emb, null_pooled_emb = null_emb[0], null_emb[1]
 
