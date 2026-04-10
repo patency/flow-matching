@@ -213,7 +213,8 @@ class DIV2KDataset(BaseImageDataset):
 
         if image_size is not None:
             self.transform = T.Compose([
-                T.Resize((image_size, image_size)),
+                T.Resize(image_size),
+                T.CenterCrop(image_size),
                 T.ToTensor(),
             ])
         else:

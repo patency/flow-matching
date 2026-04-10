@@ -263,7 +263,7 @@ class SD3FlowDPS(SD3Euler):
             prompts: List[str], NFE:int,
             img_shape: Optional[Tuple[int]]=None,
             cfg_scale: float=1.0, batch_size: int = 1,
-            step_size: float=30.0,
+            step_size: float=15.0,
             latent:Optional[List[torch.Tensor]]=None,
             prompt_emb:Optional[List[torch.Tensor]]=None,
             null_emb:Optional[List[torch.Tensor]]=None):
@@ -406,7 +406,7 @@ class SD3FlowDPS(SD3Euler):
                prompts: List[str], NFE:int,
                img_shape: Optional[Tuple[int]]=None,
                cfg_scale: float=1.0, batch_size: int = 1,
-               step_size: float=30.0,
+               step_size: float=15.0,
                latent:Optional[List[torch.Tensor]]=None,
                prompt_emb:Optional[List[torch.Tensor]]=None,
                null_emb:Optional[List[torch.Tensor]]=None):

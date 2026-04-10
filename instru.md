@@ -1,6 +1,6 @@
 **Example 1. solve Super-resolution x 12 (avg-pool) / Dog**
 
-python batch_solve.py --dataset configs/DIV2K_train.yml --num_samples 8 --method flowdps --clean_workdir
+python batch_solve.py --dataset configs/DIV2K_train.yml --num_samples 4 --method flowdps --clean_workdir
 ```
 # flowdps
 python solve.py \
@@ -104,6 +104,24 @@ python solve.py \
     --img_size 768 \
     --img_path samples/div2k_example.png \
     --prompt "a high quality photo of animal, bush, close-up, fox, grass, green, greenery, hide, panda, red, red panda, stare" \
+    --task sr_bicubic \
+    --deg_scale 12 \
+    --efficient_memory \
+    --method flowdps;
+
+python solve.py \
+    --img_size 768 \
+    --img_path samples/0001.png \
+    --prompt "a high quality photo, close-up, coral reef, sea, pink, purple, red, reef, starfish" \
+    --task sr_bicubic \
+    --deg_scale 12 \
+    --efficient_memory \
+    --method flowdps;
+
+python solve.py \
+    --img_size 768 \
+    --img_path samples/div2k_butterfly.png \
+    --prompt "a high quality photo of insect, break, butterfly, leaf, green, greenery, monarch, perch, plant, stem" \
     --task sr_bicubic \
     --deg_scale 12 \
     --efficient_memory \

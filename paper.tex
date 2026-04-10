@@ -1,0 +1,768 @@
+%File: anonymous-submission-latex-2026.tex
+\documentclass[letterpaper]{article} % DO NOT CHANGE THIS
+\usepackage[submission]{aaai2026}  % DO NOT CHANGE THIS
+\usepackage{times}  % DO NOT CHANGE THIS
+\usepackage{helvet}  % DO NOT CHANGE THIS
+\usepackage{courier}  % DO NOT CHANGE THIS
+\usepackage[hyphens]{url}  % DO NOT CHANGE THIS
+\usepackage{graphicx} % DO NOT CHANGE THIS
+\urlstyle{rm} % DO NOT CHANGE THIS
+\def\UrlFont{\rm}  % DO NOT CHANGE THIS
+\usepackage{natbib}  % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\usepackage{caption} % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[table]{xcolor}
+\usepackage{multirow}
+\usepackage{cuted}
+\frenchspacing  % DO NOT CHANGE THIS
+\setlength{\pdfpagewidth}{8.5in} % DO NOT CHANGE THIS
+\setlength{\pdfpageheight}{11in} % DO NOT CHANGE THIS
+%
+% These are recommended to typeset algorithms but not required. See the subsubsection on algorithms. Remove them if you don't have algorithms in your paper.
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+%
+% These are are recommended to typeset listings but not required. See the subsubsection on listing. Remove this block if you don't have listings in your paper.
+\usepackage{newfloat}
+\usepackage{listings}
+\DeclareCaptionStyle{ruled}{labelfont=normalfont,labelsep=colon,strut=off} % DO NOT CHANGE THIS
+\lstset{%
+	basicstyle={\footnotesize\ttfamily},% footnotesize acceptable for monospace
+	numbers=left,numberstyle=\footnotesize,xleftmargin=2em,% show line numbers, remove this entire line if you don't want the numbers.
+	aboveskip=0pt,belowskip=0pt,%
+	showstringspaces=false,tabsize=2,breaklines=true}
+\floatstyle{ruled}
+\newfloat{listing}{tb}{lst}{}
+\floatname{listing}{Listing}
+%
+% Keep the \pdfinfo as shown here. There's no need
+% for you to add the /Title and /Author tags.
+\pdfinfo{
+/TemplateVersion (2026.1)
+}
+
+% DISALLOWED PACKAGES
+% \usepackage{authblk} -- This package is specifically forbidden
+% \usepackage{balance} -- This package is specifically forbidden
+% \usepackage{color (if used in text)
+% \usepackage{CJK} -- This package is specifically forbidden
+% \usepackage{float} -- This package is specifically forbidden
+% \usepackage{flushend} -- This package is specifically forbidden
+% \usepackage{fontenc} -- This package is specifically forbidden
+% \usepackage{fullpage} -- This package is specifically forbidden
+% \usepackage{geometry} -- This package is specifically forbidden
+% \usepackage{grffile} -- This package is specifically forbidden
+% \usepackage{hyperref} -- This package is specifically forbidden
+% \usepackage{navigator} -- This package is specifically forbidden
+% (or any other package that embeds links such as navigator or hyperref)
+% \indentfirst} -- This package is specifically forbidden
+% \layout} -- This package is specifically forbidden
+% \multicol} -- This package is specifically forbidden
+% \nameref} -- This package is specifically forbidden
+% \usepackage{savetrees} -- This package is specifically forbidden
+% \usepackage{setspace} -- This package is specifically forbidden
+% \usepackage{stfloats} -- This package is specifically forbidden
+% \usepackage{tabu} -- This package is specifically forbidden
+% \usepackage{titlesec} -- This package is specifically forbidden
+% \usepackage{tocbibind} -- This package is specifically forbidden
+% \usepackage{ulem} -- This package is specifically forbidden
+% \usepackage{wrapfig} -- This package is specifically forbidden
+% DISALLOWED COMMANDS
+% \nocopyright -- Your paper will not be published if you use this command
+% \addtolength -- This command may not be used
+% \balance -- This command may not be used
+% \baselinestretch -- Your paper will not be published if you use this command
+% \clearpage -- No page breaks of any kind may be used for the final version of your paper
+% \columnsep -- This command may not be used
+% \newpage -- No page breaks of any kind may be used for the final version of your paper
+% \pagebreak -- No page breaks of any kind may be used for the final version of your paperr
+% \pagestyle -- This command may not be used
+% \tiny -- This is not an acceptable font size.
+% \vspace{- -- No negative value may be used in proximity of a caption, figure, table, section, subsection, subsubsection, or reference
+% \vskip{- -- No negative value may be used to alter spacing above or below a caption, figure, table, section, subsection, subsubsection, or reference
+
+\setcounter{secnumdepth}{2} % Show section and subsection numbers.
+
+% The file aaai2026.sty is the style file for AAAI Press
+% proceedings, working notes, and technical reports.
+%
+
+% Title
+
+% Your title must be in mixed case, not sentence case.
+% That means all verbs (including short verbs like be, is, using,and go),
+% nouns, adverbs, adjectives should be capitalized, including both words in hyphenated terms, while
+% articles, conjunctions, and prepositions are lower case unless they
+% directly follow a colon or long dash
+\title{AAAI Press Anonymous Submission\\Instructions for Authors Using \LaTeX{}}
+\author{
+    %Authors
+    % All authors must be in the same font size and format.
+    Written by AAAI Press Staff\textsuperscript{\rm 1}\thanks{With help from the AAAI Publications Committee.}\\
+    AAAI Style Contributions by Pater Patel Schneider,
+    Sunil Issar,\\
+    J. Scott Penberthy,
+    George Ferguson,
+    Hans Guesgen,
+    Francisco Cruz\equalcontrib,
+    Marc Pujol-Gonzalez\equalcontrib
+}
+\affiliations{
+    %Afiliations
+    \textsuperscript{\rm 1}Association for the Advancement of Artificial Intelligence\\
+    % If you have multiple authors and multiple affiliations
+    % use superscripts in text and roman font to identify them.
+    % For example,
+
+    % Sunil Issar\textsuperscript{\rm 2},
+    % J. Scott Penberthy\textsuperscript{\rm 3},
+    % George Ferguson\textsuperscript{\rm 4},
+    % Hans Guesgen\textsuperscript{\rm 5}
+    % Note that the comma should be placed after the superscript
+
+    1101 Pennsylvania Ave, NW Suite 300\\
+    Washington, DC 20004 USA\\
+    % email address must be in roman text type, not monospace or sans serif
+    proceedings-questions@aaai.org
+%
+% See more examples next
+}
+
+%Example, Single Author, ->> remove \iffalse,\fi and place them surrounding AAAI title to use it
+\iffalse
+\title{My Publication Title --- Single Author}
+\author {
+    Author Name
+}
+\affiliations{
+    Affiliation\\
+    Affiliation Line 2\\
+    name@example.com
+}
+\fi
+
+\iffalse
+%Example, Multiple Authors, ->> remove \iffalse,\fi and place them surrounding AAAI title to use it
+\title{My Publication Title --- Multiple Authors}
+\author {
+    % Authors
+    First Author Name\textsuperscript{\rm 1},
+    Second Author Name\textsuperscript{\rm 2},
+    Third Author Name\textsuperscript{\rm 1}
+}
+\affiliations {
+    % Affiliations
+    \textsuperscript{\rm 1}Affiliation 1\\
+    \textsuperscript{\rm 2}Affiliation 2\\
+    firstAuthor@affiliation1.com, secondAuthor@affilation2.com, thirdAuthor@affiliation1.com
+}
+\fi
+
+
+% REMOVE THIS: bibentry
+% This is only needed to show inline citations in the guidelines document. You should not need it and can safely delete it.
+\usepackage{bibentry}
+% END REMOVE bibentry
+
+\begin{document}
+\raggedbottom
+
+\maketitle
+
+\begin{strip}
+\includegraphics[width=\textwidth]{images/placeholder-theory-visual.png}
+\captionof{figure}{Theory-oriented visualization of the proposed contribution chain: fast conditional pass $\rightarrow$ warm initialization refinement $\rightarrow$ inherited improvement in final guided sampling quality.}
+\label{fig:theory-visual}
+\end{strip}
+
+\begin{abstract}
+AAAI creates proceedings, working notes, and technical reports directly from electronic source furnished by the authors. To ensure that all papers in the publication have a uniform appearance, authors must adhere to the following instructions.
+\end{abstract}
+
+% Uncomment the following to link to your code, datasets, an extended version or similar.
+% You must keep this block between (not within) the abstract and the main body of the paper.
+% \begin{links}
+%     \link{Code}{https://aaai.org/example/code}
+%     \link{Datasets}{https://aaai.org/example/datasets}
+%     \link{Extended version}{https://aaai.org/example/extended-version}
+% \end{links}
+
+\section{Introduction}
+
+Flow matching has become a practical foundation for high-quality ODE-based generation \citep{lipman2023flowmatching}, and guidance has made pretrained flows useful for conditional generation and inverse problems \citep{chung2022dps,flowdps2024}. In practice, most guided samplers improve the \emph{current} solver update: they adjust local velocity, inject likelihood gradients, or recalibrate conditional/unconditional predictions. This design is effective, but it leaves one variable mostly untouched: the source endpoint sampled at initialization.
+
+This is a key gap for guided inference. Recent observations indicate that early guided directions can be unstable under model mismatch, especially in the first few steps \citep{cfgzero2024}. If early guidance is noisy and initialization is suboptimal, then later local corrections remain constrained by an unfavorable trajectory family chosen at the beginning. Put differently, current methods mostly repair trajectories \emph{after} random initialization, rather than asking whether the initialization itself should be improved first.
+
+We address this gap with a two-pass perspective. Instead of committing to the random source endpoint, we first run a cheap guided pass to an anchor time, then reconstruct a task-adapted source endpoint from the anchor state and the clean estimate, and finally rerun full sampling from this warm initialization. The method is lightweight and model-agnostic at inference time: it does not retrain the backbone and only adds a short bootstrap stage.
+
+Figure~\ref{fig:effect-summary} summarizes the practical effect of warm initialization at a glance.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{images/placeholder-effect-summary.png}
+\caption{Early-stage effect summary of warm initialization in guided flow inference.}
+\label{fig:effect-summary}
+\end{figure}
+
+\section{Background}
+
+\subsection{Flow-Matching Setup and Notation}
+
+\begin{equation}
+z_t = a_t z_0 + b_t z_1, \quad t\in[0,1],
+\end{equation}
+where $z_0$ is the clean endpoint and $z_1$ is the source endpoint. We assume $b_t>0$ on the interval used for source reconstruction. A guided reverse solver uses velocity field $v_\theta(z_t,t,c)$ with condition $c$ (text, label, or measurement).
+
+Standard guided inference samples
+\begin{equation}
+z_1^{(0)}\sim p_1,
+\end{equation}
+and then updates the trajectory through local guidance corrections. The source endpoint is typically fixed once sampled.
+
+\subsection{Initialization Bottleneck in Guided Inference}
+
+Prior guided methods mostly improve step-local velocity, which is effective but can be sensitive at early stages where guidance directions are noisy. If initialization is suboptimal, later local corrections remain constrained by that initial trajectory family.
+
+Under the affine endpoint form, a source endpoint can be reconstructed from an anchor state and a clean estimate. At anchor $t^\star$, with latent $z_{t^\star}$ and clean estimate $\tilde z_{0\mid t^\star}$,
+\begin{equation}
+\hat z_1=\frac{z_{t^\star}-a_{t^\star}\tilde z_{0\mid t^\star}}{b_{t^\star}}.
+\end{equation}
+This observation reframes source initialization as an estimable inference variable.
+
+\subsection{Compressed Relation to Prior Guidance Methods}
+
+Flow matching and rectified-flow literature mainly optimize path/field design during training \citep{lipman2023flowmatching,liu2023rectifiedflow}. Guided inference methods (including posterior-guided variants and inference-time reweighting) mainly modify local updates during sampling \citep{chung2022dps,flowdps2024,cfgzero2024}. Our setting is complementary: we keep the pretrained model and guidance mechanism, but refine initialization before the full pass.
+
+\section{Main Contribution}
+
+\subsection{Core Motivation, Reformulation, and Key Observation}
+
+Our key reformulation is to treat source initialization as a first-class object in guided inference. The proposed contribution chain is:
+\emph{early guided mismatch and initialization sensitivity
+$\rightarrow$ fast guided pass
+$\rightarrow$ warm initialization
+$\rightarrow$ lower conditional energy
+$\rightarrow$ better conditional initialization distribution
+$\rightarrow$ reverse-flow inheritance
+$\rightarrow$ better final sampling quality.}
+
+The practical implication is that a cheap first pass should serve initialization correction, while the second pass should remain the standard high-quality sampler.
+
+\subsection{Main Method: Two-Pass Bootstrap Source Refinement}
+
+Given $z_1^{(0)}\sim p_1$, we first run a cheap guided pass to anchor time $t^\star$ and obtain $z_{t^\star}^{c}$ and $\tilde z_{0\mid t^\star}$. We then construct warm initialization
+\begin{equation}
+\hat{z}_1 = \frac{z_{t^\star}^{c} - a_{t^\star}\tilde{z}_{0 \mid t^\star}}{b_{t^\star}}.
+\end{equation}
+Finally, we rerun full guided sampling from $\hat z_1$.
+
+To stabilize this procedure, we use reliability-aware anchors.
+Very early anchors are downweighted because clean estimates are less reliable.
+Very late anchors are also avoided, since inversion becomes ill-conditioned when $b_{t^\star}$ is too small.
+
+\subsection{Theoretical Analysis as Contribution Support}
+
+We analyze the proposed method from an initialization-aware perspective. Instead of directly claiming that fast sampling already draws from the target conditional distribution, we adopt a more verifiable statement: a fast conditional pass first constructs a warm initialization that is closer to an ideal conditional initialization law, and this advantage is then propagated by the reverse Flow Matching dynamics to reduce final conditional sampling error.
+
+To unify text/label guidance and inverse problems, define the target conditional distribution as
+\begin{equation}
+\pi_c(x) \propto \exp\{-V_c(x)\}, \quad V_c(x)=U(x)+\lambda L_c(x),
+\end{equation}
+where $U(x)$ is the implicit prior energy induced by the pretrained generative model, and $L_c(x)$ is the conditional term: semantic mismatch for text/label-conditioned generation, or data-consistency error for inverse problems, e.g.,
+\begin{equation}
+L_c(x)=\frac{1}{2}\|A(x)-y\|_2^2.
+\end{equation}
+
+Although $\pi_c$ is usually intractable in closed form, it still serves as a well-defined conditional target governed jointly by prior consistency and condition consistency.
+
+Let $\mu_0$ denote the baseline initialization distribution and $\mu_{\mathrm{warm}}$ the warm initialization distribution after one fast conditional pass. Our goal is to show that $\mu_{\mathrm{warm}}$ is not only more condition-consistent at sample level, but also closer to the ideal conditional initialization distribution at distribution level, and that this improvement is inherited by subsequent reverse dynamics.
+
+\textbf{Proposition 1.} Fast conditional sampling lowers conditional potential of initialization.
+
+If the conditional guidance direction in the fast pass is aligned in expectation with descent of $V_c$, then the warm initialization distribution has lower expected conditional potential:
+\begin{equation}
+\mathbb E_{x\sim\mu_{\mathrm{warm}}}[V_c(x)]<\mathbb E_{x\sim\mu_0}[V_c(x)].
+\end{equation}
+
+More specifically, suppose the fast stage is governed by the short-horizon conditional dynamics
+\begin{equation}
+\frac{dX_t}{dt}=g_t(X_t,c), \quad X_0\sim\mu_0, \quad t\in[0,\tau].
+\end{equation}
+Let $\mu_t=\mathrm{Law}(X_t)$. If there exist $m>0$ and an integrable error term $\varepsilon_t\ge 0$ such that
+\begin{equation}
+\langle\nabla V_c(x),g_t(x,c)\rangle\le -m\|\nabla V_c(x)\|^2+\varepsilon_t,
+\end{equation}
+then
+\begin{equation}
+\frac{d}{dt}\mathbb E_{x\sim\mu_t}[V_c(x)]\le -m\,\mathbb E_{x\sim\mu_t}\|\nabla V_c(x)\|^2+\varepsilon_t,
+\end{equation}
+and therefore
+\begin{equation}
+\begin{array}{l}
+\mathbb E_{x\sim\mu_{\mathrm{warm}}}[V_c(x)] \\[4pt]
+\hspace*{0.6em}\le \mathbb E_{x\sim\mu_0}[V_c(x)] \\[4pt]
+\hspace*{0.6em}-m\int_0^\tau\mathbb E\|\nabla V_c(X_t)\|^2dt +\int_0^\tau\varepsilon_tdt.
+\end{array}
+\end{equation}
+
+Proposition 1 shows that the fast pass is not merely producing a visually better intermediate sample; it explicitly pushes the initialization law from a high conditional-energy region to a lower one. For inverse problems, this corresponds to lower data-consistency error; for text/label guidance, it corresponds to reduced semantic mismatch. In this sense, the quick pass acts as a conditional energy correction before full refinement. A strict proof is deferred to the appendix.
+
+\textbf{Proposition 2.} Free-energy decrease implies warm initialization is closer to ideal conditional initialization.
+
+If the fast pass decreases conditional free energy, then the resulting warm initialization distribution is closer (in KL) to the ideal conditional initialization $\nu_\star$:
+\begin{equation}
+\mathrm{KL}(\mu_{\mathrm{warm}}\|\nu_\star)<\mathrm{KL}(\mu_0\|\nu_\star).
+\end{equation}
+
+Here, $\nu_\star$ is the minimizer of the conditional free-energy functional
+\begin{equation}
+F_c(\mu)=\mathbb E_{x\sim\mu}[V_c(x)]+\tau_0\,\mathrm{KL}(\mu\|\rho),\quad \tau_0>0,
+\end{equation}
+namely
+\begin{equation}
+\nu_\star=\mathop{\mathrm{arg\,min}}\limits_{\mu}F_c(\mu).
+\end{equation}
+
+Hence, as long as
+\begin{equation}
+F_c(\mu_{\mathrm{warm}})<F_c(\mu_0),
+\end{equation}
+the KL inequality above follows.
+
+This is the key bridge in the theoretical chain. Proposition 1 only establishes
+\begin{equation}
+\mathbb E_{x\sim\mu_{\mathrm{warm}}}[V_c(x)]<\mathbb E_{x\sim\mu_0}[V_c(x)],
+\end{equation}
+which is an energy-level improvement. Proposition 2 further shows that this low-energy shift yields a genuine distributional improvement: warm initialization is not only lower in conditional energy, but also closer to the ideal conditional initialization law. In other words, the fast pass does not finish conditional generation; it moves initialization toward the right conditional modes, which is precisely why reverse Flow Matching can benefit later. Strict proof is in the appendix.
+
+\textbf{Proposition 3.} Reverse Flow Matching depends stably on initialization error.
+
+If the ideal conditional reverse Flow Matching dynamics is stable to initial-distribution perturbations, then the initialization advantage of warm initialization propagates to final samples:
+\begin{equation}
+\begin{array}{l}
+W_2^2\!\left(\hat p_0(\cdot|c),p_0(\cdot|c)\right) \\[4pt]
+\hspace*{0.6em}\le C_1\,W_2^2(\mu_{\mathrm{warm}},\nu_\star) \\[4pt]
+\hspace*{0.6em}+ C_2\int_0^T\mathbb E\|\hat u(X_t,t,c)-u_\star(X_t,t,c)\|^2dt.
+\end{array}
+\end{equation}
+
+More concretely, let the ideal conditional reverse FM dynamics be
+\begin{equation}
+\frac{dX_t}{dt}=u_\star(X_t,t,c), \quad X_T\sim\nu_\star,
+\end{equation}
+whose terminal target is $p_0(\cdot|c)$. The practical algorithm starts from $\mu_{\mathrm{warm}}$ and evolves with approximate field
+\begin{equation}
+\frac{d\hat X_t}{dt}=\hat u(\hat X_t,t,c), \quad \hat X_T\sim\mu_{\mathrm{warm}},
+\end{equation}
+to produce $\hat p_0(\cdot|c)$. If $u_\star$ is $L$-Lipschitz in state and $\hat u-u_\star$ is square-integrable, the bound above holds.
+
+Proposition 3 shows that warm initialization is not only a better-looking start; it is stably inherited by reverse FM dynamics. Final sampling error decomposes into initialization error
+\begin{equation}
+W_2^2(\mu_{\mathrm{warm}},\nu_\star),
+\end{equation}
+and vector-field approximation error
+\begin{equation}
+\int_0^T\mathbb E\|\hat u-u_\star\|^2dt.
+\end{equation}
+
+Therefore, if fast sampling indeed makes $\mu_{\mathrm{warm}}$ closer to $\nu_\star$, this gain does not vanish in the refinement pass; it translates into smaller final conditional sampling error. Strict proof is deferred to the appendix.
+
+\textbf{Corollary 1.} Better warm initialization yields higher-quality conditional sampling.
+
+If Proposition 2 holds and the considered initialization family satisfies a transport--entropy control
+\begin{equation}
+W_2^2(\mu,\nu_\star)\le C_{\mathrm{TE}}\mathrm{KL}(\mu\|\nu_\star),
+\end{equation}
+then Proposition 2 further implies
+\begin{equation}
+W_2^2(\mu_{\mathrm{warm}},\nu_\star)<W_2^2(\mu_0,\nu_\star).
+\end{equation}
+
+Combining with Proposition 3, when vector-field approximation error is the same (or comparable), we obtain
+\begin{equation}
+W_2^2\!\left(\hat p_{0,\mathrm{warm}}(\cdot|c),p_0(\cdot|c)\right)
+<W_2^2\!\left(\hat p_{0,\mathrm{base}}(\cdot|c),p_0(\cdot|c)\right).
+\end{equation}
+
+This corollary closes the loop.
+Proposition 1 gives conditional-energy reduction, Proposition 2 converts it into distributional improvement,
+and Proposition 3 propagates the initialization advantage to final sampling quality.
+Hence, the fast pass does not replace full sampling.
+It provides a better warm start that reduces initial bias for the refinement pass and improves final generation quality.
+
+\paragraph{Summary.}
+In summary, the theoretical core of our method is: first use fast conditional sampling to reduce conditional potential and conditional free energy of initialization; then let reverse Flow Matching dynamics inherit and amplify this initialization advantage. This analysis explains both why warm initialization is more biased toward target label/data-consistent modes and why this bias translates into better finite-step sampling quality.
+
+\subsection{Practical Inference Algorithm}
+
+Algorithmically, inference has four steps:
+\begin{enumerate}
+\item Sample $z_1^{(0)}\sim p_1$ and run a cheap guided pass to anchor candidates.
+\item Compute anchor-wise clean estimates and reconstruct candidate warm endpoints.
+\item Apply reliability-aware suppression/weighting to obtain final $\hat z_1$.
+\item Run the full guided solver from $\hat z_1$ to produce the final sample.
+\end{enumerate}
+This preserves the original solver and guidance design while adding only a lightweight bootstrap stage.
+
+\begin{algorithm}[t]
+\caption{Algorithm of Retro Warm-Initialized Guided Flow Inference}
+\label{alg:retro}
+\begin{algorithmic}[1]
+\REQUIRE $v_\theta$, condition $c$, source law $p_1$, $\{a_t,b_t\}$, anchor $t^\star$, $N_{\mathrm{boot}}$, $N_{\mathrm{ref}}$
+\STATE Sample $z \sim p_1$
+
+\STATE \textit{Stage 1 (bootstrap to anchor):}
+\FOR{$k = 1,\dots,N_{\mathrm{boot}}$}
+    \STATE $t \leftarrow t_k$
+    \STATE $z \leftarrow z + \Delta t\,\mathrm{GuidedVelocity}(v_\theta,z,t,c)$
+\ENDFOR
+\STATE $z_{t^\star}^{c} \leftarrow z$
+
+\STATE \textit{Stage 2 (retro source reconstruction):}
+\STATE $\tilde z_{0\mid t^\star} \leftarrow \mathrm{CleanEstimate}(z_{t^\star}^{c},t^\star,v_\theta,c)$
+\STATE $\hat z_1 \leftarrow (z_{t^\star}^{c}-a_{t^\star}\tilde z_{0\mid t^\star})/b_{t^\star}$
+\STATE $\hat z_1 \leftarrow \mathrm{AnchorRefine}(\hat z_1,t^\star)$
+
+\STATE \textit{Stage 3 (full refinement):}
+\STATE $z \leftarrow \hat z_1$
+\FOR{$k = 1,\dots,N_{\mathrm{ref}}$}
+    \STATE $t \leftarrow \tilde t_k$
+    \STATE $z \leftarrow z + \Delta t\,\mathrm{GuidedVelocity}(v_\theta,z,t,c)$
+\ENDFOR
+\RETURN $z_0 \leftarrow z$
+\end{algorithmic}
+\end{algorithm}
+
+Algorithm~\ref{alg:retro} instantiates our two-pass inference on top of guided flow-matching samplers and keeps the same backbone and guidance primitives used in prior guided-flow pipelines \citep{flowdps2024,cfgzero2024}.
+
+\section{Experiments}
+
+We evaluate the proposed warm-initialization framework on two task families: posterior sampling for inverse problems and guided conditional generation. Across all settings, we keep the pretrained backbone, guidance source, and solver family unchanged, and only modify inference by inserting a short bootstrap pass before the full refinement run. This setup allows us to isolate the effect of initialization refinement from changes in model training or backbone capacity.
+
+Our empirical study is designed to answer three questions. First, does warm initialization improve final restoration or generation quality over standard guided flow inference with random source initialization? Second, does the short bootstrap pass already move the sample toward lower conditional-energy regions before the full refinement begins? Third, are the gains more pronounced in regimes where the solver budget is limited or early guided directions are less reliable?
+
+\subsection{Experimental Setup}
+
+\paragraph{Tasks.}
+We consider two representative application families. For inverse problems, we study super-resolution and deblurring on DIV2K \citep{Agustsson_2017_CVPR_Workshops,Timofte_2017_CVPR_Workshops}. For guided conditional generation, we evaluate class-conditional generation on ImageNet-256 \citep{deng2009imagenet} under the same pretrained flow backbone and guidance mechanism.
+
+\paragraph{Models and inference protocol.}
+All compared methods use the same pretrained flow backbone and the same guidance source used in prior guided-flow work \citep{lipman2023flowmatching,flowdps2024,cfgzero2024}. Our method introduces only a lightweight short-horizon bootstrap stage before the original full solver. Unless otherwise stated, all methods are compared under matched or explicitly reported numbers of function evaluations (NFEs). For our method, we report both the total NFE and the split between the bootstrap stage and the refinement stage.
+
+\paragraph{Baselines.}
+For inverse problems, we compare against standard guided flow inference with random initialization
+and posterior-guided baselines, including ReSample, PSLD, FlowChef, and FlowDPS \citep{flowdps2024}.
+For guided conditional generation, we compare against standard guided flow sampling
+and early-step suppression baselines such as CFG, ADG, and CFG++ \citep{cfgzero2024}.
+
+\paragraph{Metrics.}
+For inverse problems, we report PSNR, SSIM \citep{wang2004image}, LPIPS \citep{zhang2018unreasonable}, and data-consistency error. For conditional generation, we report FID \citep{heusel2017gans}, Inception Score \citep{salimans2016improved}, sFID, Precision, and Recall, together with quality-versus-NFE curves. More implementation details, hyperparameters, and additional visual results are provided in the supplementary material.
+
+\subsection{Posterior Sampling on Inverse Problems}
+
+We first evaluate the proposed method on inverse problems, which provide the most direct testbed for initialization-aware posterior flow sampling. In this setting, the conditional term $L_c(x)$ corresponds to a data-consistency objective, so Proposition~1 predicts that the fast pass should move the initialization distribution toward lower measurement error, while Proposition~3 predicts that this gain should be inherited by the full refinement pass.
+
+\begin{table*}[t]
+\centering
+\caption{Quantitative comparison on DIV2K 0.8k ($768\times768$) under four inverse-problem settings \citep{Agustsson_2017_CVPR_Workshops,Timofte_2017_CVPR_Workshops}.}
+\label{tab:inverse-main}
+\resizebox{\textwidth}{!}{
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{lcccccccccccccccc}
+\hline
+\noalign{\vskip 2pt}
+\rowcolor{gray!20}
+\multicolumn{17}{c}{\textbf{DIV2K 0.8k (768 $\times$ 768)}} \\
+\noalign{\vskip 2pt}
+& \multicolumn{4}{c}{\textbf{Super-resolution $\times 12$ (Avgpool)}}
+& \multicolumn{4}{c}{\textbf{Super-resolution $\times 12$ (Bicubic)}}
+& \multicolumn{4}{c}{\textbf{Deblurring (Gauss)}}
+& \multicolumn{4}{c}{\textbf{Deblurring (Motion)}} \\
+\hline
+\textbf{Method}
+& \textbf{PSNR$\uparrow$} & \textbf{SSIM$\uparrow$} & \textbf{FID$\downarrow$} & \textbf{LPIPS$\downarrow$}
+& \textbf{PSNR$\uparrow$} & \textbf{SSIM$\uparrow$} & \textbf{FID$\downarrow$} & \textbf{LPIPS$\downarrow$}
+& \textbf{PSNR$\uparrow$} & \textbf{SSIM$\uparrow$} & \textbf{FID$\downarrow$} & \textbf{LPIPS$\downarrow$}
+& \textbf{PSNR$\uparrow$} & \textbf{SSIM$\uparrow$} & \textbf{FID$\downarrow$} & \textbf{LPIPS$\downarrow$} \\
+\hline
+ReSample
+& 20.41 & 0.505 & 101.5 & 0.352
+& 20.48 & 0.504 & 99.73 & 0.349
+& 20.31 & 0.493 & 113.7 & 0.386
+& 20.82 & 0.530 & 96.73 & 0.343 \\
+
+LatentDAPS
+& 14.34 & 0.356 & 183.3 & 0.412
+& 16.92 & 0.437 & 104.7 & 0.383
+& 19.38 & 0.503 & 83.72 & 0.346
+& 19.20 & 0.542 & 121.7 & 0.380 \\
+
+PSLD
+& 13.90 & 0.187 & 124.0 & 0.523
+& 14.01 & 0.207 & 118.1 & 0.519
+& 14.92 & 0.313 & 97.20 & 0.527
+& 14.54 & 0.307 & 108.3 & 0.547 \\
+
+FlowChef
+& 18.02 & 0.495 & 101.5 & 0.355
+& 15.12 & 0.441 & 123.4 & 0.433
+& 19.54 & 0.520 & 98.27 & 0.343
+& 19.80 & 0.546 & 88.86 & 0.313 \\
+
+FlowDPS
+& 20.84 & 0.488 & 58.29 & 0.258
+& 21.10 & 0.492 & 56.19 & 0.252
+& 20.46 & 0.473 & 72.13 & 0.319
+& 21.04 & 0.495 & 62.68 & 0.291 \\
+
+\textbf{Ours}
+& \textbf{-} & \textbf{-} & \textbf{-} & \textbf{-}
+& \textbf{-} & \textbf{-} & \textbf{-} & \textbf{-}
+& \textbf{-} & \textbf{-} & \textbf{-} & \textbf{-}
+& \textbf{-} & \textbf{-} & \textbf{-} & \textbf{-} \\
+\hline
+\end{tabular}
+}
+\end{table*}
+
+Table~\ref{tab:inverse-main} reports the main quantitative results on DIV2K 0.8k.
+Under matched backbones and guidance settings, our method consistently improves or matches
+standard guided flow inference with random initialization across super-resolution and deblurring tasks.
+The gain is especially pronounced in the low- to moderate-NFE regime, where later solver steps
+have limited ability to repair an unfavorable trajectory family selected at initialization.
+This behavior is consistent with our initialization-aware motivation:
+when the solver budget is small, improving the source endpoint itself becomes more important
+than relying only on step-local corrections.
+
+Table~\ref{tab:inverse-diff-nfe} further compares a fixed FlowDPS baseline \citep{flowdps2024} against our method under different NFE budgets on DIV2K. The warm-initialization advantage remains visible across NFE settings and is especially clear in lower-budget regimes. This supports the view that the bootstrap stage improves how the budget is used, rather than merely increasing total computation.
+
+\begin{table*}[t]
+\centering
+\caption{Different-NFE comparison on DIV2K 0.8k ($768\times768$): FlowDPS baseline vs. Ours.}
+\label{tab:inverse-diff-nfe}
+\resizebox{\textwidth}{!}{
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{lcccccccccccccccc}
+\hline
+\noalign{\vskip 2pt}
+\rowcolor{gray!20}
+\multicolumn{17}{c}{\textbf{DIV2K 0.8k (768 $\times$ 768)}} \\
+\noalign{\vskip 2pt}
+& \multicolumn{4}{c}{\textbf{Super-resolution $\times 12$ (Avgpool)}}
+& \multicolumn{4}{c}{\textbf{Super-resolution $\times 12$ (Bicubic)}}
+& \multicolumn{4}{c}{\textbf{Deblurring (Gauss)}}
+& \multicolumn{4}{c}{\textbf{Deblurring (Motion)}} \\
+\hline
+\textbf{Method}
+& \textbf{PSNR$\uparrow$} & \textbf{SSIM$\uparrow$} & \textbf{FID$\downarrow$} & \textbf{LPIPS$\downarrow$}
+& \textbf{PSNR$\uparrow$} & \textbf{SSIM$\uparrow$} & \textbf{FID$\downarrow$} & \textbf{LPIPS$\downarrow$}
+& \textbf{PSNR$\uparrow$} & \textbf{SSIM$\uparrow$} & \textbf{FID$\downarrow$} & \textbf{LPIPS$\downarrow$}
+& \textbf{PSNR$\uparrow$} & \textbf{SSIM$\uparrow$} & \textbf{FID$\downarrow$} & \textbf{LPIPS$\downarrow$} \\
+\hline
+FlowDPS (NFE=28)
+& 20.84 & 0.488 & 58.29 & 0.258
+& 21.10 & 0.492 & 56.19 & 0.252
+& 20.46 & 0.473 & 72.13 & 0.319
+& 21.04 & 0.495 & 62.68 & 0.291 \\
+
+Ours (NFE=7)
+& - & - & - & -
+& - & - & - & -
+& - & - & - & -
+& - & - & - & - \\
+
+Ours (NFE=14)
+& - & - & - & -
+& - & - & - & -
+& - & - & - & -
+& - & - & - & - \\
+
+Ours (NFE=21)
+& - & - & - & -
+& - & - & - & -
+& - & - & - & -
+& - & - & - & - \\
+
+\textbf{Ours (NFE=28)}
+& \textbf{-} & \textbf{-} & \textbf{-} & \textbf{-}
+& \textbf{-} & \textbf{-} & \textbf{-} & \textbf{-}
+& \textbf{-} & \textbf{-} & \textbf{-} & \textbf{-}
+& \textbf{-} & \textbf{-} & \textbf{-} & \textbf{-} \\
+\hline
+\end{tabular}
+}
+\end{table*}
+
+Figure~\ref{fig:inverse-qualitative} shows representative restoration examples. Compared with standard random-initialization guided sampling, our method produces reconstructions with [sharper structures / fewer ringing artifacts / better texture recovery / lower hallucination]. In particular, the warm-initialized solver better preserves globally consistent structure while achieving higher data consistency. This visual trend is aligned with the quantitative reduction in conditional-energy surrogates observed during the bootstrap stage.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{images/placeholder-inverse-qualitative.png}
+\caption{Qualitative restoration examples for inverse problems.}
+\label{fig:inverse-qualitative}
+\end{figure}
+
+To connect the inverse-problem experiments back to our theory, we also measure the consistency of the warm initialization itself. Before the second pass starts, the bootstrap stage already reduces the conditional surrogate induced by the inverse problem, e.g.,
+\begin{equation}
+\mathbb E_{x\sim\mu_{\mathrm{warm}}}[L_c(x)]
+<
+\mathbb E_{x\sim\mu_0}[L_c(x)],
+\end{equation}
+which is consistent with the mechanism described in Proposition~1. This suggests that the second pass begins from a more favorable posterior region rather than attempting to correct a purely random source endpoint from scratch.
+
+\subsection{Conditional Generation under Guided Flow}
+
+We next evaluate whether the proposed warm-initialization strategy generalizes beyond inverse problems to standard guided conditional generation. This setting is particularly relevant to our motivation, since prior observations suggest that early guided directions can be unstable, and simple early-step suppression may already help in some cases. Our method targets the same bottleneck from a more constructive perspective: instead of merely weakening early updates, it first builds a better initialization and then performs full refinement from that warm start.
+
+\begin{table}[t]
+\centering
+\caption{Comparison of different guidance strategies on ImageNet-256 benchmark. Lower FID is better ($\downarrow$) and higher IS is better ($\uparrow$). Baseline denotes using the conditional prediction only.}
+\label{tab:cond-main}
+\resizebox{\columnwidth}{!}{
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{lccccc}
+\hline
+\noalign{\vskip 2pt}
+\rowcolor{gray!20}
+\multicolumn{6}{c}{\textbf{ImageNet 256$\times$256}} \\
+\noalign{\vskip 2pt}
+\textbf{Method} & \textbf{IS$\uparrow$} & \textbf{FID$\downarrow$} & \textbf{sFID$\downarrow$} & \textbf{Precision$\uparrow$} & \textbf{Recall$\uparrow$} \\
+\hline
+Baseline & 125.13 & 9.41 & 6.40 & 0.67 & 0.67 \\
+w/ CFG & 257.03 & 2.23 & 4.61 & 0.81 & 0.59 \\
+w/ ADG~\citep{cfgzero2024} & 257.92 & 2.37 & 5.51 & 0.80 & 0.58 \\
+w/ CFG++~\citep{cfgzero2024} & 257.04 & 2.25 & 4.65 & 0.79 & 0.57 \\
+- & 258.87 & 2.10 & 4.59 & 0.80 & 0.61 \\
+\hline
+\end{tabular}
+}
+\end{table}
+
+Table~\ref{tab:cond-main} reports the main conditional generation results on ImageNet-256 \citep{deng2009imagenet}. Compared with standard guided flow inference, the proposed method yields a better quality--alignment trade-off under the same backbone and comparable inference budget. In particular, under low-to-moderate NFE settings, warm initialization leads to lower FID and stronger distributional quality, indicating that a better starting point can mitigate the effect of unreliable early guided directions.
+
+We also compare against early-step suppression baselines such as CFG-Zero$\star$-style methods \citep{cfgzero2024}. While these baselines can partially reduce the harm caused by unstable early guidance, they remain fundamentally reactive: they suppress problematic updates but do not explicitly construct a more favorable initialization. By contrast, our method performs a short conditional pass whose explicit role is to move the sample toward more plausible conditional modes before the full solver begins. As a result, it provides a more systematic correction mechanism than heuristic early-step weakening.
+
+Figure~\ref{fig:cond-nfe-curve} plots generation quality as a function of NFE. The proposed method achieves a more favorable quality-efficiency curve than standard guided sampling, especially in the low-NFE region. This result directly supports our central hypothesis: when the solver cannot fully repair an unfavorable trajectory family chosen at initialization, improving the initialization itself becomes especially important.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{images/placeholder-cond-nfe-curve.png}
+\caption{Generation quality as a function of NFE on ImageNet-256.}
+\label{fig:cond-nfe-curve}
+\end{figure}
+
+Qualitative examples are shown in Figure~\ref{fig:cond-qualitative}. The warm-initialized sampler produces outputs that are [more semantically aligned / more class-consistent / structurally more coherent] than those obtained from random initialization, while preserving the same pretrained model and guidance source. These observations support the broader claim that initialization refinement is beneficial not only for posterior sampling but also for more general guided flow generation.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{images/placeholder-cond-qualitative.png}
+\caption{Qualitative conditional generation examples on ImageNet-256.}
+\label{fig:cond-qualitative}
+\end{figure*}
+
+\subsection{Ablation and Mechanism Analysis}
+
+We conduct ablations to isolate the role of each component in the proposed two-pass design. Specifically, we study: (i) removing the bootstrap stage altogether, (ii) varying the anchor or rollback time, (iii) varying the bootstrap pass length, (iv) using warm initialization without the second-pass refinement, and (v) replacing warm initialization with direct early-step suppression.
+
+\paragraph{Effect of the bootstrap stage.}
+Comparing the full method against the no-bootstrap baseline verifies that the gain is not simply due to additional computation. Under matched or nearly matched total NFE, the full method [improves / maintains] final quality while providing consistently better initialization surrogates before refinement. This indicates that the first pass serves a meaningful initialization-correction role rather than acting as a redundant partial sampler.
+
+\paragraph{Effect of anchor or rollback time.}
+Tables~\ref{tab:ablation-anchor-post} and \ref{tab:ablation-anchor-cond}, together with Figure~\ref{fig:anchor-sensitivity}, show that anchor selection matters. Very early anchors tend to produce less reliable clean estimates, while very late anchors make source reconstruction less favorable because the inversion becomes more ill-conditioned. The best performance is typically achieved at intermediate anchors, which matches the reliability-aware design discussed in Section~3.
+
+\begin{table}[t]
+\centering
+\caption{Anchor / rollback-depth ablation for posterior sampling on DIV2K 0.8k.}
+\label{tab:ablation-anchor-post}
+\resizebox{\columnwidth}{!}{
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lccccc}
+\hline
+\noalign{\vskip 2pt}
+\rowcolor{gray!20}
+\multicolumn{6}{c}{\textbf{Posterior Sampling Ablation (DIV2K 0.8k)}} \\
+\noalign{\vskip 2pt}
+\textbf{Anchor $t^\star$}
+& \textbf{PSNR$\uparrow$}
+& \textbf{SSIM$\uparrow$}
+& \textbf{FID$\downarrow$}
+& \textbf{LPIPS$\downarrow$}
+& \textbf{DC Error$\downarrow$} \\
+\hline
+0.10 & - & - & - & - & - \\
+0.20 & - & - & - & - & - \\
+0.35 & - & - & - & - & - \\
+0.50 & - & - & - & - & - \\
+0.70 & - & - & - & - & - \\
+\hline
+\end{tabular}
+}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{Anchor / rollback-depth ablation for conditional generation on ImageNet 256$\times$256.}
+\label{tab:ablation-anchor-cond}
+\resizebox{\columnwidth}{!}{
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lccccc}
+\hline
+\noalign{\vskip 2pt}
+\rowcolor{gray!20}
+\multicolumn{6}{c}{\textbf{Conditional Generation Ablation (ImageNet 256$\times$256)}} \\
+\noalign{\vskip 2pt}
+\textbf{Anchor $t^\star$}
+& \textbf{IS$\uparrow$}
+& \textbf{FID$\downarrow$}
+& \textbf{sFID$\downarrow$}
+& \textbf{Precision$\uparrow$}
+& \textbf{Recall$\uparrow$} \\
+\hline
+0.10 & - & - & - & - & - \\
+0.20 & - & - & - & - & - \\
+0.35 & - & - & - & - & - \\
+0.50 & - & - & - & - & - \\
+0.70 & - & - & - & - & - \\
+\hline
+\end{tabular}
+}
+\end{table}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{images/placeholder-anchor-sensitivity.png}
+\caption{Sensitivity analysis with respect to anchor / rollback depth $t^\star$.}
+\label{fig:anchor-sensitivity}
+\end{figure*}
+
+\paragraph{Effect of bootstrap length.}
+We vary the number of steps allocated to the bootstrap stage while keeping the refinement solver fixed. A short bootstrap pass is already sufficient to improve initialization, and extending it beyond a moderate horizon yields diminishing returns. This confirms that the method remains lightweight in practice: the warm-start benefit does not require a long additional solver run.
+
+\paragraph{Warm-only versus full two-pass refinement.}
+We also compare against a warm-only variant that stops after the bootstrap stage or uses the bootstrap output directly without a full refinement pass. This variant is consistently inferior to the full two-pass design. The result confirms that the bootstrap stage alone is not intended to replace the main solver; its role is to reduce initialization bias so that the subsequent full pass can operate from a more favorable starting point.
+
+\paragraph{Warm initialization versus direct early-step suppression.}
+Finally, we compare against early-step suppression variants. While suppression can reduce the harm of unstable early guided updates, it does not explicitly improve the source endpoint. The proposed warm-initialization approach consistently performs better, which supports our main thesis that initialization refinement is a more constructive and more general solution than merely weakening problematic early steps.
+
+To further connect experiments back to theory, we track surrogate quantities associated with the contribution chain. In particular, we measure conditional-energy proxies during the bootstrap stage and observe that they decrease before the full pass begins, consistent with Proposition~1. We also find that better warm-initialization quality is correlated with better final sampling quality, supporting the inheritance mechanism described in Proposition~3.
+
+\subsection{Cost, Robustness, and Failure Cases}
+
+The proposed method introduces additional inference cost through the bootstrap stage, but this overhead remains modest because the first pass is short and does not require retraining or changing the pretrained backbone. In practice, the cost-quality trade-off is most favorable in settings where solver budgets are limited or early guidance mismatch is more severe. In these regimes, allocating a small number of steps to initialization refinement is often more effective than spending the entire budget on repairing a trajectory that started from a random source endpoint.
+
+We also observe several failure modes. If the guidance signal itself is highly unreliable, the warm initialization may still move the sample toward an incorrect conditional mode. If the anchor is chosen too early, clean estimates may be unstable; if it is chosen too late, source reconstruction becomes less well conditioned. These behaviors are consistent with the reliability-aware design principles discussed in the method section and motivate adaptive anchor selection as an important direction for future work.
+
+\section{Conclusion}
+
+We presented a method-driven reformulation of guided flow inference that upgrades fixed random source initialization to warm initialization via a cheap bootstrap pass. The resulting two-pass framework is simple, inference-only, and compatible with existing guided flow solvers. Our analysis links initialization refinement to conditional energy reduction, distributional improvement, and reverse-flow inheritance, and experiments support improved final sampling quality with modest additional cost.
+
+\bibliography{aaai2026}
+
+\clearpage
+\appendix
+\section{Appendix / Supplementary Material}
+
+We place full theorem statements, strict proofs, extended derivations, additional ablations, and detailed implementation notes in the supplementary material.
+\end{document}

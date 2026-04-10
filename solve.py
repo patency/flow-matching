@@ -129,7 +129,7 @@ if __name__ == "__main__":
     parser.add_argument('--img_size', type=int, default=768)
 
     # workdir params
-    parser.add_argument('--workdir', type=Path, default='workdir')
+    parser.add_argument('--workdir', type=Path, default='workdir/origin')
 
     # data params
     parser.add_argument('--img_path', type=Path)
