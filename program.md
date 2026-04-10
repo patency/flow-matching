@@ -13,6 +13,10 @@
 1. 该修改影响链条中的哪个环节？
 2. 为什么预计会带来 `FID↓ / PSNR↑ / SSIM↑`？
 
+并且默认优先级为：
+
+`sample 算法结构改进` > `数据一致性注入策略改进` > `小参数微调`
+
 ---
 
 ## 目标
@@ -32,11 +36,16 @@
 ### 允许修改
 
 - `sd3_sampler.py`
-  - 重点是 `RetroFlowDPS` 采样相关参数与策略，尤其：
-    - `cfg_scale: float = 1.0`
-    - `batch_size: int = 1`
-    - `step_size: float = 15.0`
+  - 重点是 `sample()` 算法行为本身（尤其 `flowdps` / `retroflowdps`）：
+    - 两阶段采样结构（bootstrap / refine）
+    - 回溯点策略（retro index / trigger 条件）
+    - 重采样区间与噪声重注入公式
+    - data consistency 的注入时机/频次/混合方式
+    - 条件分支（null/cond）在时间轴上的调度
   - 允许在该文件内做与采样质量直接相关的最小必要改动。
+  - `cfg_scale` / `step_size` 仅作为算法改动后的二阶微调，不作为主实验方向。
+  - **硬约束**：`data_consistency()` 视为固定模块，不允许修改其实现。
+  - **主优化位点**：仅在 `sample()` 内调整回溯策略（如 `retro_idx`、触发时机、回溯后重采样区间与流程）。
 - `paper.tex`（受控小改，新增）
   - 仅允许基于实验结果做“小幅理论-实证对齐”修改：
     - 补充更准确的假设边界、失败模式、适用条件
@@ -51,6 +60,7 @@
 - 不改评测口径（PSNR/SSIM/FID 的计算方式保持现状）。
 - 不做与采样质量无关的大规模重构。
 - 不允许先改论文结论、后找实验“对齐”；必须先有可复现实验依据。
+- 不允许修改 `data_consistency()` 的损失定义、梯度更新与迭代次数。
 
 ---
 
@@ -72,6 +82,7 @@ torchrun --nproc_per_node=2 batch_solve.py \
 
 - 使用相同 `num_samples`、相同数据配置做对比。
 - 当前 `batch_solve.py` 对 `solver.sample()` 不再显式传 `cfg_scale/step_size`，因此实验主要通过 `sd3_sampler.py` 默认值与内部策略生效。
+- 当前评测主战场是 `sd3_sampler.py::sample()` 的更新规则，不是默认超参数网格搜索。
 - 若改动涉及理论新假设，必须追加一组对照实验验证（至少 baseline + 新方案）。
 
 ---
@@ -102,9 +113,11 @@ commit	psnr	ssim	fid	status	description
 1. 基于当前最佳提交，先写“理论假设一句话”（记录在 commit message 或实验备注）。
 2. 修改 `sd3_sampler.py`（一次一个想法，改动小且可解释）。
    - 示例映射：
-     - `cfg_scale`：影响条件势能下降强度（对应 Proposition 1 侧）
-     - `step_size`：影响 early-stage 稳定性与继承误差（对应 Proposition 3 侧）
-     - `batch_size`：仅在不改变评测口径前提下用于稳定统计，不作为主理论改动
+     - 回溯触发与重采样设计：影响 warm initialization 质量（Proposition 1/2）
+     - data consistency 注入调度：影响继承误差与稳定性（Proposition 3）
+     - 噪声重注入公式/权重：影响 early-stage 偏差传播（Proposition 3）
+     - `cfg_scale/step_size`：仅用于验证算法改动是否需要轻微配套校准
+   - 本阶段新增限制：不改 `data_consistency()`，只改 `sample()` 中的回溯策略。
 3. 提交：
 
 ```bash
@@ -187,18 +200,27 @@ git reset --hard <上一个最佳commit>
 
 ## 建议优先实验方向（从简到繁）
 
-1. `cfg_scale` 网格：`[0.8, 1.0, 1.2, 1.5, 2.0]`
-2. `step_size` 网格：`[10, 12, 15, 18, 20]`
-3. `cfg_scale` 与 `step_size` 联动（前期保守、后期增强，验证 early-stage 稳定性假设）
-4. 空提示（null prompt）与条件提示混合权重微调
-5. 对 batch 内样本采用一致/自适应参数的比较
+1. **[进行中] 流形平均噪声锚点（manifold-averaged noise anchor）**  
+   在 first pass 每步记录 `z1t = z + (1-σ)·v`，回溯时用 `z1_avg = mean(z1_hist)` 代替单步反推的 `z1y` 重初始化，降低回溯起点方差。  
+   - 理论依据：每步 `z1t` 是对相同源噪声 `z1 ~ N(0,I)` 的有偏估计；沿轨迹平均消减方差，使回溯起点更稳定（类比 FlowEdit source inversion，但无需参考图像）。  
+   - 预期效果：PSNR/SSIM 提升（一致性更好），FID 降低（分布更紧）。  
+   - 代码位点：`retroflowdps.sample()` 第一阶段 `z1_hist` 累积 + 回溯触发处。
 
-每个方向都要写明“理论预期”：
+2. 调整 `sample()` 的两阶段结构（是否回溯、回溯到何时、是否分段重采样）
+3. 调整回溯触发时机（固定末步触发 vs 条件触发）
+4. 调整回溯后重采样区间（从中段/后段重启）
+5. 调整回溯后的噪声恢复路径（不改 data consistency 前提下）
+6. 在回溯结构稳定后，再做 `cfg_scale/step_size` 小范围校准
 
-- 若 `cfg_scale` 过低：条件约束不足，FID 可能恶化。
-- 若 `cfg_scale` 过高：早期不稳定，PSNR/SSIM 可能下降。
-- 若 `step_size` 过大：继承误差放大，结果波动加剧。
-- 若 `step_size` 过小：收敛慢，有限 NFE 下可能欠优化。
+每个方向都要写明"理论预期"：
+
+- 若 `z1_avg` 效果好：说明单步 `z1y` 估计方差是主要误差来源，回溯起点质量可显著改善。
+- 若 `z1_avg` 无改善：说明回溯起点不是瓶颈，需转向回溯点位置或重采样区间调整。
+- 若回溯过早：warm start 信息不足，改进有限。
+- 若回溯过晚：误差已累积，二次采样收益下降。
+- 若一致性注入过强过早：细节损失、PSNR/SSIM 下降风险。
+- 若重噪声过强：方差升高导致 FID 波动。
+- 小参数（`cfg_scale/step_size`）只用于稳定算法，不替代算法创新。
 
 ---
 

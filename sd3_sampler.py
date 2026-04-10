@@ -300,15 +300,20 @@ class SD3FlowDPS(SD3Euler):
         timesteps = self.scheduler.timesteps
         sigmas = timesteps / self.scheduler.config.num_train_timesteps
 
-        # 回溯到“第14步”
-        # 如果你说的“第14步”是按人类计数(1-based)，这里就是 13
-        retro_idx = 3
+        # 回溯到中段（默认约一半步数），避免过早回溯导致 warm 信息不足
+        retro_idx = max(1, (NFE // 2) - 1)
 
         # =========================
         # first pass
         # =========================
         pbar = tqdm(timesteps, total=NFE, desc='SD3-FlowDPS')
         do_retro = False
+        # [Theory] accumulate per-step predicted noise endpoints z1t along the
+        # flow trajectory.  Each z1t = z + (1-sigma)*v estimates the source
+        # noise z1.  Averaging them across steps yields a manifold-averaged
+        # noise anchor z1_avg with lower variance than any single-step estimate
+        # (analogous to FlowEdit's source inversion, but reference-free).
+        z1_hist = []
 
         for i, t in enumerate(pbar):
             timestep = t.expand(z.shape[0]).to(self.device)
@@ -329,20 +334,19 @@ class SD3FlowDPS(SD3Euler):
             z1t = z + (1 - sigma) * pred
             delta = sigma - sigma_next
 
+            # record predicted noise endpoint for manifold averaging
+            z1_hist.append(z1t.detach().clone())
+
             z0y = self.data_consistency(z0t, operator, measurement, task=task, stepsize=step_size)
             z0y = (1 - sigma) * z0t + sigma * z0y
 
-            # 在最后一步，利用当前 z 和 z0y 回溯到第14步
+            # At NFE-2 trigger retro: use manifold-averaged z1 as noise anchor.
+            # z1_avg has lower variance than the single-step z1y inferred from
+            # the last step alone, giving a more stable retro initialization.
             if i == NFE - 2:
                 sigma_retro = sigmas[retro_idx]
-                sigma_safe = sigma.clamp(min=1e-6) if torch.is_tensor(sigma) else max(sigma, 1e-6)
-
-                # 由当前 z_t 和改进后的 z0y 反推出对应的 z1
-                z1y = (z - (1 - sigma) * z0y) / sigma_safe
-
-                # 回溯到第14步对应的 sigma
-                z = (1 - sigma_retro) * z0y + sigma_retro * z1y
-
+                z1_avg = torch.stack(z1_hist, dim=0).mean(dim=0)
+                z = (1 - sigma_retro) * z0y + sigma_retro * z1_avg
                 do_retro = True
                 break
 
